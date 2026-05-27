@@ -1,0 +1,2968 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Synora Core Center</title>
+  <meta name="synora-build" content="2026-05-26" />
+  <meta name="theme-color" content="#05060a" />
+  <style>
+    :root{
+      --bg0:#05060a;
+      --bg1:#070a12;
+      --panel:rgba(255,255,255,.06);
+      --panel2:rgba(255,255,255,.08);
+      --stroke:rgba(255,255,255,.14);
+      --text:#e9ecff;
+      --muted:rgba(233,236,255,.70);
+      --muted2:rgba(233,236,255,.52);
+
+      --gold:#d4af37;
+      --cyan:#40f5ff;
+      --cyan2:#20c7ff;
+      --electric:#4c7dff;
+      --violet:#8b5cf6;
+      --magenta:#ff4fd8;
+      --danger:#ff3b68;
+      --ok:#2cff9d;
+      --warn:#ffcf4a;
+
+      --shadow: 0 14px 50px rgba(0,0,0,.55);
+      --shadow2: 0 0 0 1px rgba(255,255,255,.06), 0 18px 70px rgba(0,0,0,.55);
+      --r12: 12px;
+      --r16: 16px;
+      --r20: 20px;
+
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(1000px 600px at 15% 10%, rgba(76,125,255,.18), transparent 55%),
+        radial-gradient(900px 600px at 88% 22%, rgba(64,245,255,.14), transparent 58%),
+        radial-gradient(850px 550px at 70% 90%, rgba(139,92,246,.13), transparent 55%),
+        radial-gradient(650px 420px at 30% 80%, rgba(212,175,55,.08), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+    }
+
+    /* Subtle animated grid */
+    .bg-grid{
+      position:fixed; inset:0; pointer-events:none; opacity:.55;
+      background:
+        linear-gradient(to right, rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: radial-gradient(70% 50% at 50% 40%, black 60%, transparent 100%);
+      animation: gridDrift 18s linear infinite;
+    }
+    @keyframes gridDrift{ from{ transform:translateY(0);} to{ transform:translateY(52px);} }
+
+    .noise{
+      position:fixed; inset:0; pointer-events:none; opacity:.10;
+      background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="120" height="120" filter="url(%23n)" opacity="0.35"/></svg>');
+      mix-blend-mode:overlay;
+    }
+
+    .glass{
+      background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
+      border:1px solid var(--stroke);
+      border-radius:var(--r16);
+      box-shadow:var(--shadow2);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .app{ height:100%; display:grid; grid-template-columns: 86px 1fr 380px; gap:14px; padding:14px; }
+
+    /* Left rail: modes */
+    .rail{
+      display:flex; flex-direction:column; gap:10px;
+      padding:10px;
+    }
+    .rail .pill{
+      display:flex; flex-direction:column; gap:6px;
+      padding:10px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.22);
+    }
+
+    /* Connect modal */
+    .modal{
+      position:absolute; inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,.62);
+      z-index:50;
+      padding:18px;
+    }
+    .modal.open{ display:flex; }
+    .modalCard{
+      width:min(640px, 100%);
+      border-radius: 20px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(5,6,10,.78);
+      box-shadow: 0 30px 120px rgba(0,0,0,.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding:16px;
+    }
+    .modalCard h3{ margin:0; font-size:12px; letter-spacing:.6px; color:rgba(233,236,255,.78); font-family:var(--mono); }
+    .field{ margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+    .field label{ font-size:11px; color:rgba(233,236,255,.70); font-family:var(--mono); }
+    .inp{
+      width:100%;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      color:rgba(233,236,255,.92);
+      padding:10px 12px;
+      font-family:var(--mono);
+      font-size:12px;
+      outline:none;
+    }
+    .modalActions{ margin-top:14px; display:flex; gap:10px; justify-content:flex-end; }
+    .btn2{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.06);
+      color:rgba(233,236,255,.92);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-family:var(--mono);
+      font-size:12px;
+    }
+    .btn2.primary{
+      border-color: rgba(64,245,255,.22);
+      background: linear-gradient(135deg, rgba(64,245,255,.16), rgba(139,92,246,.12));
+      box-shadow: 0 0 0 1px rgba(64,245,255,.08), 0 0 22px rgba(64,245,255,.08);
+    }
+    .rail .logo{
+      width:44px; height:44px; border-radius:14px;
+      background:
+        radial-gradient(24px 24px at 30% 30%, rgba(64,245,255,.60), transparent 70%),
+        radial-gradient(24px 24px at 70% 70%, rgba(139,92,246,.55), transparent 70%),
+        linear-gradient(135deg, rgba(212,175,55,.30), rgba(76,125,255,.22));
+      border:1px solid rgba(255,255,255,.14);
+      box-shadow: 0 0 0 1px rgba(64,245,255,.10), 0 0 22px rgba(64,245,255,.08), 0 0 22px rgba(139,92,246,.06);
+      position:relative;
+      overflow:hidden;
+    }
+    .rail .logo::after{
+      content:"";
+      position:absolute; inset:-60% -40%;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+      transform:rotate(25deg);
+      animation: shimmer 5.2s ease-in-out infinite;
+    }
+    @keyframes shimmer{ 0%,35%{ transform:translateX(-30%) rotate(25deg); opacity:0;} 55%{opacity:1;} 100%{ transform:translateX(30%) rotate(25deg); opacity:0;} }
+
+    .modebtn{
+      width:100%;
+      height:56px;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      transition: transform .12s ease, background .12s ease, border .12s ease, box-shadow .12s ease;
+      position:relative;
+      overflow:hidden;
+    }
+    .modebtn:hover{ transform:translateY(-1px); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.16); }
+    .modebtn.active{
+      background:linear-gradient(135deg, rgba(64,245,255,.16), rgba(139,92,246,.12));
+      border-color:rgba(64,245,255,.22);
+      box-shadow: 0 0 0 1px rgba(64,245,255,.10), 0 0 24px rgba(64,245,255,.08);
+    }
+
+    /* REC state: obvious and operational */
+    .modebtn.rec-on{
+      background:linear-gradient(135deg, rgba(44,255,157,.16), rgba(64,245,255,.10));
+      border-color:rgba(44,255,157,.28);
+      box-shadow: 0 0 0 1px rgba(44,255,157,.12), 0 0 26px rgba(44,255,157,.10);
+    }
+    .modebtn.rec-on .k{ color:rgba(210,255,235,.92); }
+
+    /* REC LED (institutional, not gamer) */
+    .modebtn.rec-on::after{
+      content:"";
+      position:absolute;
+      top:10px; right:10px;
+      width:8px; height:8px;
+      border-radius:999px;
+      background: rgba(44,255,157,.95);
+      box-shadow: 0 0 0 1px rgba(44,255,157,.25), 0 0 18px rgba(44,255,157,.30);
+      animation: recPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes recPulse{ 0%,100%{ transform:scale(1); opacity:.85;} 50%{ transform:scale(1.25); opacity:1;} }
+    .modebtn.rec-off{
+      background:rgba(255,59,104,.06);
+      border-color:rgba(255,59,104,.16);
+    }
+    .modebtn.rec-off .k{ color:rgba(255,210,222,.85); }
+
+    .modebtn .k{ font-size:11px; letter-spacing:.6px; color:var(--muted); font-family:var(--mono); }
+
+    /* Center: orbital canvas */
+    .center{
+      position:relative;
+      border-radius: var(--r20);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      box-shadow: var(--shadow2);
+    }
+
+    .topline{
+      position:absolute; inset: 12px 12px auto 12px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      pointer-events:none;
+    }
+    .title{
+      pointer-events:none;
+      display:flex; flex-direction:column; gap:2px;
+      padding:10px 12px;
+      border-radius: 16px;
+      background:rgba(0,0,0,.24);
+      border:1px solid rgba(255,255,255,.10);
+      max-width: 520px;
+    }
+    .title .h{ font-weight:700; letter-spacing:.3px; }
+    .title .s{ font-size:12px; color:var(--muted); line-height:1.25; }
+
+    .statusbar{
+      pointer-events:none;
+      display:flex; gap:10px; align-items:center;
+      padding:10px 12px;
+      border-radius: 16px;
+      background:rgba(0,0,0,.24);
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .chip{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+    .dot{ width:8px; height:8px; border-radius:999px; background:var(--ok); box-shadow:0 0 14px rgba(44,255,157,.22); }
+    .dot.warn{ background:var(--warn); box-shadow:0 0 14px rgba(255,207,74,.22); }
+    .dot.crit{ background:var(--danger); box-shadow:0 0 14px rgba(255,59,104,.22); }
+
+    canvas{ display:block; width:100%; height:100%; }
+
+    /* Right: context/drilldown */
+    .context{
+      display:flex; flex-direction:column; gap:12px;
+      padding:12px;
+      overflow:hidden;
+    }
+    .panel{
+      padding:12px;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.20);
+    }
+
+    /* Attention routing (DRILL auto-focus) */
+    .drill-focus{
+      border-color: rgba(64,245,255,.22) !important;
+      box-shadow: 0 0 0 1px rgba(64,245,255,.10), 0 0 34px rgba(64,245,255,.10);
+      animation: drillPulse 1.35s ease-in-out 2;
+    }
+    @keyframes drillPulse{
+      0%{ transform:translateY(0); }
+      40%{ transform:translateY(-2px); }
+      100%{ transform:translateY(0); }
+    }
+    .panel h2{ margin:0 0 8px 0; font-size:12px; letter-spacing:.6px; color:rgba(233,236,255,.75); font-family:var(--mono); }
+    .kv{ display:grid; grid-template-columns: 1fr auto; gap:8px 10px; font-size:12px; color:var(--muted); }
+    .kv .v{ color:rgba(233,236,255,.92); font-family:var(--mono); }
+    .warnings{ margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+    .warnitem{
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,207,74,.06);
+      padding:10px;
+      font-size:12px;
+      color:rgba(233,236,255,.86);
+    }
+
+    /* Bottom ticker */
+    .ticker{
+      position:absolute; left:12px; right:12px; bottom:12px;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.30);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .ticker .label{ font-size:11px; color:rgba(233,236,255,.70); font-family:var(--mono); letter-spacing:.6px; }
+    .ticker .stream{
+      flex:1;
+      overflow:hidden;
+      white-space:nowrap;
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(233,236,255,.90);
+    }
+    .ticker .stream span{ opacity:.92; }
+    .ticker .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      color:rgba(233,236,255,.92);
+      padding:8px 10px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-family:var(--mono);
+      font-size:11px;
+      transition: transform .12s ease, background .12s ease;
+    }
+
+    /* Stronger micro-legibility in drill/WF */
+    body.drill-active .ticker .stream{ font-size:12.5px; }
+    body.drill-active .ticker{ border-color: rgba(64,245,255,.16); }
+    .ticker .btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,.07); }
+
+    /* Mobile */
+    @media (max-width: 1020px){
+      .app{ grid-template-columns: 86px 1fr; }
+      .context{ display:none; }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      .bg-grid{ animation:none; }
+      .rail .logo::after{ animation:none; }
+    }
+
+    /* Record mode: reduce motion/visual noise for stable screen capture */
+    body.record-mode .bg-grid{ animation:none; opacity:.35; }
+    body.record-mode .noise{ opacity:.06; }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="noise"></div>
+
+  <div class="app">
+    <aside class="rail glass" aria-label="Modes">
+      <div class="pill">
+        <div class="logo" aria-hidden="true"></div>
+        <div style="font-size:11px; color:var(--muted); font-family:var(--mono); letter-spacing:.6px;">SYNORA</div>
+      </div>
+
+      <button class="modebtn active" data-mode="observability" title="Observability">
+        <div class="k">OBS</div>
+      </button>
+      <button class="modebtn" data-mode="workflows" title="Workflows">
+        <div class="k">WF</div>
+      </button>
+      <button class="modebtn" data-mode="settlements" title="Settlements">
+        <div class="k">SET</div>
+      </button>
+      <button class="modebtn" data-mode="guardian" title="Guardian">
+        <div class="k">G</div>
+      </button>
+      <button class="modebtn" data-mode="agents" title="Agents">
+        <div class="k">AI</div>
+      </button>
+      <button class="modebtn" data-mode="incidents" title="Incidents">
+        <div class="k">INC</div>
+      </button>
+
+      <button class="modebtn" id="recordBtn" title="Record mode (low motion)">
+        <div class="k">REC</div>
+      </button>
+
+      <div style="margin-top:auto" class="pill">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="dot" id="sysDot"></div>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div style="font-weight:700; font-size:12px;">Core Center</div>
+            <div style="font-size:11px; color:var(--muted); font-family:var(--mono);" id="runtimeLabel">runtime: simulated</div>
+          </div>
+        </div>
+        <div style="margin-top:10px; display:flex; gap:8px;">
+          <button class="modebtn" id="connectBtn" title="Connect Supabase" style="height:44px; border-radius:14px; display:none;">
+            <div class="k">LINK</div>
+          </button>
+          <button class="modebtn" id="emitBtn" title="Emit test event" style="height:44px; border-radius:14px; display:none;">
+            <div class="k">EMIT</div>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="center" aria-label="Synora Core Center">
+      <!-- Connect modal (prevents losing prompt when switching apps) -->
+      <div class="modal" id="connectModal" aria-hidden="true">
+        <div class="modalCard">
+          <h3>LINK SUPABASE (core_events)</h3>
+          <div class="field">
+            <label for="supUrl">SUPABASE URL</label>
+            <input class="inp" id="supUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="supAnon">PUBLISHABLE / ANON KEY</label>
+            <input class="inp" id="supAnon" placeholder="sb_pub..." autocomplete="off" />
+          </div>
+          <div class="modalActions">
+            <button class="btn2" id="connectCancel">cancel</button>
+            <button class="btn2 primary" id="connectSave">connect</button>
+          </div>
+          <div style="margin-top:10px; font-size:11px; line-height:1.4; color:rgba(233,236,255,.62)">
+            Dica: copie do Supabase → Connect (snippet NEXT_PUBLIC_*). Não cole keys no chat.
+          </div>
+          <div id="connectMsg" style="margin-top:10px; font-size:11px; line-height:1.4; color:rgba(233,236,255,.70); font-family:var(--mono)">
+            status: idle
+          </div>
+        </div>
+      </div>
+
+      <div class="topline">
+        <div class="title">
+          <div class="h">Synora Core Center</div>
+          <div class="s">Infraestrutura viva • event backbone • settlements • guardian • workflows • trust • cognition</div>
+        </div>
+        <div class="statusbar">
+          <div class="chip"><span class="dot" id="healthDot"></span><span>health</span> <span class="v" id="healthScore" style="font-family:var(--mono); color:rgba(233,236,255,.92)">—</span></div>
+          <div class="chip"><span style="width:8px;height:8px;border-radius:99px;background:rgba(64,245,255,.8);display:inline-block;box-shadow:0 0 18px rgba(64,245,255,.20)"></span><span>events/s</span> <span class="v" id="eps" style="font-family:var(--mono); color:rgba(233,236,255,.92)">—</span></div>
+          <div class="chip"><span style="width:8px;height:8px;border-radius:99px;background:rgba(139,92,246,.85);display:inline-block;box-shadow:0 0 18px rgba(139,92,246,.20)"></span><span>orchestration</span> <span class="v" id="orch" style="font-family:var(--mono); color:rgba(233,236,255,.92)">—</span></div>
+        </div>
+      </div>
+
+      <canvas id="scene" aria-label="Orbital scene"></canvas>
+
+      <div class="ticker" aria-label="Live event stream">
+        <div class="label" id="liveLabel">LIVE</div>
+        <button class="btn" id="drillClear" style="display:none">drill: — ✕</button>
+        <div class="stream" id="ticker"></div>
+        <button class="btn" id="pauseBtn">pause</button>
+        <button class="btn" id="clearBtn">clear</button>
+      </div>
+    </main>
+
+    <aside class="context glass" aria-label="Context">
+      <div class="panel">
+        <h2>SELECTED</h2>
+        <div class="kv">
+          <div>id</div><div class="v" id="selId">—</div>
+          <div>type</div><div class="v" id="selType">—</div>
+          <div>state</div><div class="v" id="selState">—</div>
+          <div>health</div><div class="v" id="selHealth">—</div>
+          <div>events/min</div><div class="v" id="selEpm">—</div>
+          <div>latency p95</div><div class="v" id="selP95">—</div>
+          <div>queue</div><div class="v" id="selQueue">—</div>
+          <div>last correlation</div><div class="v" id="selCorr">—</div>
+        </div>
+        <div class="warnings" id="selWarnings"></div>
+      </div>
+
+      <div class="panel">
+        <h2>RUNBOOK</h2>
+        <div style="font-size:12px; color:var(--muted); line-height:1.35">
+          Ações são simuladas nesta geração v0.
+          Em breve: reprocess queues • open incident • drill correlation • pause engine • force policy version.
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>SCENARIOS</h2>
+        <div style="font-size:12px; color:var(--muted); line-height:1.35; margin-bottom:10px">
+          Forçar stress operacional (para demo/gravação).
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px">
+          <button class="btn2" id="scnGuardian">Guardian overload</button>
+          <button class="btn2" id="scnSettlement">Settlement congestion</button>
+          <button class="btn2" id="scnRetry">Retry storm</button>
+          <button class="btn2" id="scnCalm" style="border-color:rgba(44,255,157,.22)">Calm down</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>NOTES</h2>
+        <div style="font-size:12px; color:var(--muted); line-height:1.35">
+          Arquitetura separada:
+          <div style="margin-top:8px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.86)">
+            VisualOrbitEngine<br/>
+            OperationalDataLayer<br/>
+            EventStreams<br/>
+            RuntimeStateEngine<br/>
+            MotionSystem
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  (() => {
+    /**
+     * Synora Core Center — Geração v0 (single-file)
+     *
+     * Objetivo: fundação arquitetural + linguagem operacional.
+     * Esta versão roda com dados simulados, mas com camadas separadas para plugar:
+     * - Supabase realtime
+     * - event engine append-only
+     * - guardian interventions
+     * - settlement queues
+     */
+
+    // -------------------------------
+    // 1) Operational Data Layer
+    // -------------------------------
+    const OperationalDataLayer = (() => {
+      const nowIso = () => new Date().toISOString();
+      const rnd = (a,b) => a + Math.random()*(b-a);
+      const pick = (arr) => arr[Math.floor(Math.random()*arr.length)];
+
+      const statePalette = {
+        active:   { c: 'rgba(44,255,157,.95)', glow: 'rgba(44,255,157,.20)' },
+        syncing:  { c: 'rgba(64,245,255,.95)', glow: 'rgba(64,245,255,.20)' },
+        degraded: { c: 'rgba(255,207,74,.95)', glow: 'rgba(255,207,74,.22)' },
+        blocked:  { c: 'rgba(255,59,104,.95)', glow: 'rgba(255,59,104,.22)' },
+        'review-required': { c: 'rgba(255,207,74,.95)', glow: 'rgba(255,207,74,.22)' },
+        'settlement-pending': { c: 'rgba(139,92,246,.95)', glow: 'rgba(139,92,246,.22)' },
+      };
+
+      // Engine personality palette (semantic)
+      const persona = {
+        // Core / infra
+        core:      { rim:'rgba(64,245,255,.85)', glow:'rgba(64,245,255,.14)', hint:'CORE' },
+        guardian:  { rim:'rgba(212,175,55,.92)', glow:'rgba(212,175,55,.16)', hint:'GUARDIAN' },
+        event:     { rim:'rgba(139,92,246,.92)', glow:'rgba(139,92,246,.18)', hint:'EVENT' },
+        workflow:  { rim:'rgba(76,125,255,.88)', glow:'rgba(76,125,255,.14)', hint:'WORKFLOW' },
+        settlement:{ rim:'rgba(44,255,157,.92)', glow:'rgba(44,255,157,.16)', hint:'SETTLEMENT' },
+        middleware:{ rim:'rgba(64,245,255,.78)', glow:'rgba(64,245,255,.12)', hint:'MIDDLEWARE' },
+        trust:     { rim:'rgba(255,207,74,.92)', glow:'rgba(255,207,74,.16)', hint:'TRUST' },
+        identity:  { rim:'rgba(255,255,255,.62)', glow:'rgba(255,255,255,.10)', hint:'IDENTITY' },
+        notification:{ rim:'rgba(212,175,55,.72)', glow:'rgba(212,175,55,.10)', hint:'NOTIFY' },
+
+        // Agents (cognition layer)
+        agent:     { rim:'rgba(255,255,255,.75)', glow:'rgba(64,245,255,.12)', hint:'AGENT' },
+        'gugo':    { rim:'rgba(64,245,255,.92)', glow:'rgba(64,245,255,.18)', hint:'GUGO' },
+        'piola':   { rim:'rgba(139,92,246,.92)', glow:'rgba(139,92,246,.16)', hint:'PIOLA' },
+        'wolf':    { rim:'rgba(76,125,255,.92)', glow:'rgba(76,125,255,.16)', hint:'WOLF' },
+        'skipper': { rim:'rgba(44,255,157,.92)', glow:'rgba(44,255,157,.16)', hint:'SKIPPER' },
+        'guardian-ai': { rim:'rgba(212,175,55,.90)', glow:'rgba(212,175,55,.14)', hint:'GUARDIAN AI' },
+        'analytics': { rim:'rgba(255,255,255,.78)', glow:'rgba(255,255,255,.10)', hint:'ANALYTICS' },
+
+        // Verticals (business layer)
+        vertical:  { rim:'rgba(255,255,255,.55)', glow:'rgba(255,255,255,.08)', hint:'VERTICAL' },
+        'audio':   { rim:'rgba(255,79,216,.88)', glow:'rgba(255,79,216,.14)', hint:'AUDIO' },
+        'mediadora': { rim:'rgba(32,199,255,.90)', glow:'rgba(32,199,255,.14)', hint:'MEDIADORA' },
+        'tourism': { rim:'rgba(212,175,55,.90)', glow:'rgba(212,175,55,.14)', hint:'TOURISM' },
+        'finance': { rim:'rgba(44,255,157,.90)', glow:'rgba(44,255,157,.14)', hint:'FINANCE' },
+        'international': { rim:'rgba(76,125,255,.90)', glow:'rgba(76,125,255,.14)', hint:'INTERNATIONAL' },
+      };
+
+      const nodes = [];
+      const links = [];
+
+      function labelRadius(label){
+        const s = String(label||'');
+        // rough width proxy: longer labels need more separation
+        return Math.min(26, 10 + s.length * 0.9);
+      }
+
+      function mkNode({ id, type, layer, label, orbitR, orbitW, baseAngle, state='active' }){
+        return {
+          id, type, layer, label,
+          orbit: { r: orbitR, w: orbitW, a0: baseAngle },
+          state,
+          health: 92,
+          metrics: {
+            epm: 0,
+            p95: 0,
+            queue: 0,
+            corr: null,
+          },
+          warnings: [],
+          fx: { pulse:0, shake:0, hotUntil:0, lastSev:'info' },
+          // collision proxy (for angular separation on rings)
+          rLabel: labelRadius(id==='core' ? 'CORE' : (persona[id]?.hint || label || id)),
+        };
+      }
+
+      // Layer 1: Core
+      nodes.push(mkNode({ id:'core', type:'core', layer:1, label:'Synora Core Engine', orbitR:0, orbitW:0, baseAngle:0, state:'active' }));
+
+      // Layer 2: Infra
+      const infra = [
+        ['guardian','engine','Guardian'],
+        ['middleware','engine','Middleware'],
+        ['event','engine','Event Engine'],
+        ['workflow','engine','Workflow Engine'],
+        ['settlement','engine','Settlement Engine'],
+        ['trust','engine','Trust Engine'],
+        ['identity','engine','Identity Layer'],
+        ['notification','engine','Notification Layer'],
+      ];
+      // Operational clusters (angles in radians)
+      const infraAngle = {
+        // governance cluster
+        guardian: 3.85,
+        trust: 4.35,
+        // backbone/process cluster
+        event: 2.55,
+        workflow: 2.95,
+        // finance cluster
+        settlement: 0.25,
+        // routing/mesh
+        middleware: 3.15,
+        // identity/notify (lower weight)
+        identity: 4.95,
+        notification: 5.45,
+      };
+      infra.forEach((it,i)=>{
+        const id = it[0];
+        const a = (id in infraAngle) ? infraAngle[id] : (i/infra.length)*Math.PI*2;
+        // physics per engine: heavy governance slower, event/backbone faster
+        const w = (id==='guardian' || id==='trust') ? 0.07
+          : (id==='event' ? 0.14
+            : (id==='workflow' ? 0.12
+              : (id==='identity' || id==='notification') ? 0.06
+              : 0.10));
+
+        // v24: push Identity + Notification slightly outward into their own sector
+        const r = (id==='identity' || id==='notification') ? 220 : 170;
+
+        nodes.push(mkNode({ id, type:it[1], layer:2, label:it[2], orbitR:r, orbitW:w, baseAngle:a, state:'active' }));
+      });
+
+      // Layer 3: Agents
+      const agents = [
+        ['gugo','agent','GuGo'],
+        ['piola','agent','Piola'],
+        ['wolf','agent','Wolf'],
+        ['skipper','agent','Skipper'],
+        ['guardian-ai','agent','Guardian AI'],
+        ['analytics','agent','Analytics'],
+      ];
+      const agentAngle = {
+        'gugo': 1.75,
+        'piola': 2.15,
+        'wolf': 1.35,
+        'skipper': 2.55,
+        'guardian-ai': 3.05,
+        'analytics': 0.95,
+      };
+      agents.forEach((it,i)=>{
+        const id = it[0];
+        const a = (id in agentAngle) ? agentAngle[id] : (i/agents.length)*Math.PI*2;
+        nodes.push(mkNode({ id, type:it[1], layer:3, label:it[2], orbitR:290, orbitW:0.20, baseAngle:a, state:'active' }));
+      });
+
+      // Layer 4: Verticals
+      const verticals = [
+        ['audio','vertical','Synora Audio'],
+        ['mediadora','vertical','Mediadora'],
+        ['finance','vertical','Finance'],
+        ['tourism','vertical','Tourism'],
+        ['international','vertical','International'],
+      ];
+      const verticalAngle = {
+        // finance near settlement
+        finance: 0.10,
+        // mediadora near governance/workflow
+        mediadora: 2.85,
+        // audio near event/workflow
+        audio: 2.35,
+        // tourism near guardian/trust
+        tourism: 4.15,
+        // international wide edge
+        international: 5.25,
+      };
+      verticals.forEach((it,i)=>{
+        const id = it[0];
+        const a = (id in verticalAngle) ? verticalAngle[id] : (i/verticals.length)*Math.PI*2;
+        nodes.push(mkNode({ id, type:it[1], layer:4, label:it[2], orbitR:420, orbitW:0.06, baseAngle:a, state:'active' }));
+      });
+
+      // Canonical links (streams)
+      function L(from,to,kind){ links.push({ from, to, kind, rate: 0.3, quality:'ok' }); }
+
+      // Verticals -> engines
+      ['audio','mediadora','finance','tourism','international'].forEach(v => {
+        L(v,'guardian','guardian');
+        L(v,'workflow','workflow');
+        L(v,'event','events');
+      });
+
+      // Workflow/settlement/event backbone
+      L('workflow','event','events');
+      L('workflow','settlement','settlement');
+      L('settlement','event','events');
+      L('event','trust','events');
+      L('event','notification','notification');
+
+      // Core <-> engines
+      infra.forEach(it => L('core', it[0], 'orchestration'));
+
+      // Agents participate (keep secondary to avoid spaghetti)
+      ['gugo','piola','wolf','skipper','guardian-ai','analytics'].forEach(a => {
+        links.push({ from:'core', to:a, kind:'orchestration', rate:0.10, quality:'ok' });
+        links.push({ from:a, to:'workflow', kind:'workflow', rate:0.08, quality:'ok' });
+        links.push({ from:a, to:'settlement', kind:'settlement', rate:0.06, quality:'ok' });
+        links.push({ from:a, to:'guardian', kind:'guardian', rate:0.06, quality:'ok' });
+      });
+
+      // Simulated event bus
+      const subscribers = new Set();
+      const emit = (evt) => subscribers.forEach(fn => fn(evt));
+      const onEvent = (fn) => { subscribers.add(fn); return () => subscribers.delete(fn); };
+
+      const scenarios = {
+        guardian: [
+          { action:'guardian.validate', sev:'info' },
+          { action:'guardian.block', sev:'high' },
+          { action:'guardian.review_required', sev:'warn' },
+        ],
+        settlement: [
+          { action:'settlement.queued', sev:'info' },
+          { action:'settlement.processing', sev:'info' },
+          { action:'settlement.failed', sev:'high' },
+          { action:'settlement.confirmed', sev:'info' },
+        ],
+        workflow: [
+          { action:'workflow.transition', sev:'info' },
+          { action:'workflow.retry_scheduled', sev:'warn' },
+        ],
+        trust: [
+          { action:'trust.anomaly', sev:'warn' },
+          { action:'trust.incident_opened', sev:'high' },
+        ],
+      };
+
+      function correlation(){
+        const h = Math.random().toString(16).slice(2,10).toUpperCase();
+        return `CORR-${h}`;
+      }
+
+      // --- Stress simulator -------------------------------------------------
+      // Congestion episodes with persistence + recovery (hysteresis).
+      // Purpose: stop the runtime from feeling “perfect/healthy” and instead
+      // feel like real infra: congesting, degrading, saturating, propagating.
+      const StressSim = (() => {
+        const S = {
+          guardian: { p:0.12, trend:0, hold:0, reviewQ:0, retries:0, policyMs:140 },
+          settlement:{ p:0.10, trend:0, hold:0, pending:0, throughput:62, delayS:0 },
+          workflow:  { p:0.10, trend:0, hold:0, retryStorm:0, lagMs:0, blocked:0 },
+        };
+        const clamp01 = (x)=>Math.max(0, Math.min(1, x));
+        const ease = (x)=> x*x*(3-2*x);
+
+        function state(p){
+          if(p >= 0.82) return 'SATURATED';
+          if(p >= 0.62) return 'DEGRADED';
+          if(p >= 0.38) return 'TENSE';
+          return 'NOMINAL';
+        }
+
+        function maybeEpisode(key){
+          const s = S[key];
+          if(s.hold>0){ s.hold--; return; }
+          const base = (key==='settlement') ? 0.052 : 0.042;
+          const pStart = base + s.p*0.028;
+          if(Math.random() < pStart){
+            s.trend = (key==='guardian') ? rnd(0.020, 0.070)
+              : (key==='settlement') ? rnd(0.018, 0.060)
+              : rnd(0.020, 0.065);
+            s.hold = Math.floor(rnd(18, 44));
+          }
+        }
+        function relax(key){
+          const s = S[key];
+          if(s.hold<=0) s.trend += rnd(-0.020, 0.010);
+          s.trend = Math.max(-0.060, Math.min(0.080, s.trend));
+        }
+
+        function step(){
+          // episodes
+          maybeEpisode('guardian');
+          maybeEpisode('settlement');
+          maybeEpisode('workflow');
+          relax('guardian');
+          relax('settlement');
+          relax('workflow');
+
+          // integrate pressure
+          for(const k of ['guardian','settlement','workflow']){
+            const s = S[k];
+            s.p = clamp01(s.p + s.trend + rnd(-0.012, 0.012));
+            // gentle gravity toward nominal
+            const target = 0.10 + (k==='settlement'?0.02:0);
+            s.p = clamp01(s.p + (target - s.p)*0.04);
+          }
+
+          // propagation (systemic impact)
+          S.workflow.p = clamp01(S.workflow.p + (S.guardian.p - 0.45)*0.06);
+          S.workflow.p = clamp01(S.workflow.p + (S.settlement.p - 0.55)*0.04);
+
+          // counters (what the user “feels” operationally)
+          {
+            const p = S.guardian.p;
+            S.guardian.reviewQ = Math.max(0, Math.round(4 + ease(p)*160 + rnd(-6, 9)));
+            S.guardian.retries = Math.max(0, Math.round(ease(p)*55 + rnd(-2, 6)));
+            S.guardian.policyMs = Math.max(60, Math.round(120 + ease(p)*2200 + rnd(-50, 120)));
+          }
+          {
+            const p = S.settlement.p;
+            S.settlement.pending = Math.max(0, Math.round(6 + ease(p)*210 + rnd(-6, 12)));
+            S.settlement.throughput = Math.max(5, Math.round((72 + rnd(-8, 9)) * (1 - ease(p)*0.70)));
+            S.settlement.delayS = Math.max(0, Math.round(ease(p)*75 + rnd(-2, 6)));
+          }
+          {
+            const p = S.workflow.p;
+            S.workflow.retryStorm = Math.max(0, Math.round(ease(p)*120 + rnd(-10, 16)));
+            S.workflow.lagMs = Math.max(0, Math.round(ease(p)*2400 + rnd(-90, 160)));
+            S.workflow.blocked = Math.max(0, Math.round(ease(p)*22 + rnd(-2, 4)));
+          }
+
+          function byNode(id){
+            if(id==='guardian') return { p:S.guardian.p, state:state(S.guardian.p), kind:'guardian' };
+            if(id==='settlement') return { p:S.settlement.p, state:state(S.settlement.p), kind:'settlement' };
+            if(id==='workflow') return { p:S.workflow.p, state:state(S.workflow.p), kind:'workflow' };
+            const ambient = clamp01((S.guardian.p*0.18 + S.settlement.p*0.16 + S.workflow.p*0.14) - 0.06);
+            return { p: ambient, state: state(ambient), kind:'ambient' };
+          }
+          function enginePressure(nodeId){ return byNode(nodeId)?.p || 0; }
+
+          return {
+            guardian: { ...S.guardian },
+            settlement: { ...S.settlement },
+            workflow: { ...S.workflow },
+            byNode,
+            enginePressure,
+          };
+        }
+
+        // Manual scenario triggers (demo controls)
+        function force(key, level=0.86, holdTicks=90){
+          const s = S[key];
+          if(!s) return;
+          s.p = clamp01(Math.max(s.p, level));
+          s.trend = Math.max(s.trend, 0.045);
+          s.hold = Math.max(s.hold, holdTicks);
+        }
+        function calm(holdTicks=80){
+          // pull everything back but with inertia
+          for(const k of ['guardian','settlement','workflow']){
+            const s = S[k];
+            s.trend = Math.min(s.trend, -0.040);
+            s.hold = Math.max(s.hold, holdTicks);
+            s.p = clamp01(Math.min(s.p, 0.28));
+          }
+        }
+
+        return { step, force, calm };
+      })();
+
+      function tick(){
+        // baseline health drift
+        const stress = StressSim.step();
+        nodes.forEach(n => {
+          if(n.id==='core') return;
+          n.health = Math.max(48, Math.min(99, n.health + rnd(-1.3, 0.9) - (stress.enginePressure(n.id)*0.9)));
+
+          // default baseline
+          let epm = Math.max(0, Math.round(rnd(0, 120)));
+          let p95 = Math.max(10, Math.round(rnd(18, 420)));
+          let q = Math.max(0, Math.round(rnd(0, (n.id==='settlement'? 80 : 20))));
+
+          // engine-specific mapping (pressure → operational symptoms)
+          if(n.id==='guardian'){
+            const p = stress.guardian.p;
+            q = Math.max(0, Math.round(8 + p*140 + rnd(-6, 10)));
+            p95 = Math.max(18, Math.round(120 + p*980 + rnd(-40, 85)));
+            epm = Math.max(0, Math.round((90 + rnd(-15, 22)) * (1 - p*0.55)));
+            n.metrics.retries = Math.max(0, Math.round(stress.guardian.retries));
+            n.metrics.reviewQ = Math.max(0, Math.round(stress.guardian.reviewQ));
+            n.metrics.policyMs = Math.max(40, Math.round(stress.guardian.policyMs));
+          }
+          if(n.id==='settlement'){
+            const p = stress.settlement.p;
+            q = Math.max(0, Math.round(12 + p*210 + rnd(-8, 14)));
+            p95 = Math.max(25, Math.round(140 + p*1200 + rnd(-55, 120)));
+            epm = Math.max(0, Math.round((110 + rnd(-18, 28)) * (1 - p*0.62)));
+            n.metrics.pending = Math.max(0, Math.round(stress.settlement.pending));
+            n.metrics.throughput = Math.max(0, Math.round(stress.settlement.throughput));
+            n.metrics.delayS = Math.max(0, Math.round(stress.settlement.delayS));
+          }
+          if(n.id==='workflow'){
+            const p = stress.workflow.p;
+            q = Math.max(0, Math.round(6 + p*120 + rnd(-6, 12)));
+            p95 = Math.max(18, Math.round(90 + p*820 + rnd(-35, 95)));
+            epm = Math.max(0, Math.round((120 + rnd(-25, 35)) * (1 - p*0.40)));
+            n.metrics.retryStorm = Math.max(0, Math.round(stress.workflow.retryStorm));
+            n.metrics.lagMs = Math.max(0, Math.round(stress.workflow.lagMs));
+            n.metrics.blocked = Math.max(0, Math.round(stress.workflow.blocked));
+          }
+
+          n.metrics.epm = epm;
+          n.metrics.p95 = p95;
+          n.metrics.queue = q;
+
+          // expose stress for renderer (glow/vibration/pulse interruption)
+          n.stress = stress.byNode(n.id);
+
+          // occasional warnings
+          n.warnings = [];
+          if(n.id==='guardian' && Math.random()<0.12) n.warnings.push({ code:'POLICY_VERSION_MISMATCH', msg:'policy_version ausente em parte do tráfego', sev:'warn' });
+          if(n.id==='middleware' && Math.random()<0.10) n.warnings.push({ code:'REPLAY_RISK', msg:'replay protection não habilitada (v0)', sev:'high' });
+          if(n.id==='settlement' && n.metrics.queue>55) n.warnings.push({ code:'BACKPRESSURE', msg:'fila alta: settlement backpressure', sev:'warn' });
+        });
+
+        // --- Ring collision avoidance (institutional stability)
+        // Enforce minimum angular separation per ring based on label proxy radius.
+        // This avoids node/label overlap without free-form force simulation.
+        const byLayer = new Map();
+        for(const n of nodes){
+          if(n.layer<=1) continue;
+          if(!byLayer.has(n.layer)) byLayer.set(n.layer, []);
+          byLayer.get(n.layer).push(n);
+        }
+
+        for(const [layer, arr] of byLayer.entries()){
+          // Larger rings allow smaller angular spacing; normalize by orbit radius.
+          const ringR = arr[0]?.orbit?.r || 200;
+          const minBase = layer===2 ? 0.20 : (layer===3 ? 0.17 : 0.16);
+          // Sort by current base angle (a0)
+          arr.sort((a,b)=>a.orbit.a0 - b.orbit.a0);
+          for(let iter=0; iter<2; iter++){
+            for(let i=0;i<arr.length;i++){
+              const a = arr[i];
+              const b = arr[(i+1)%arr.length];
+              let da = b.orbit.a0 - a.orbit.a0;
+              if(i===arr.length-1) da = (b.orbit.a0 + Math.PI*2) - a.orbit.a0;
+              const need = minBase + ((a.rLabel + b.rLabel) / Math.max(1, ringR)) * 0.85;
+              if(da < need){
+                const push = (need - da) * 0.55;
+                // governance cluster (guardian/trust) is heavier → move less
+                const wa = (a.id==='guardian' || a.id==='trust') ? 0.6 : 1.0;
+                const wb = (b.id==='guardian' || b.id==='trust') ? 0.6 : 1.0;
+                const norm = wa + wb;
+                a.orbit.a0 -= push * (wa/norm);
+                b.orbit.a0 += push * (wb/norm);
+              }
+            }
+            // wrap into [0, 2π)
+            for(const n of arr){
+              n.orbit.a0 = (n.orbit.a0 % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+            }
+            arr.sort((a,b)=>a.orbit.a0 - b.orbit.a0);
+          }
+        }
+
+        // randomly flip some states
+        const candidate = nodes.filter(n => n.layer===2);
+        const n = pick(candidate);
+        if(Math.random() < 0.18){
+          n.state = pick(['active','active','active','degraded','review-required','blocked','syncing','settlement-pending']);
+        }
+
+        // random link rates
+        links.forEach(l => {
+          l.rate = Math.max(0.02, Math.min(2.8, l.rate + rnd(-0.15, 0.18)));
+          l.quality = (Math.random()<0.03) ? pick(['dropped','backpressured','ok']) : l.quality;
+          if(l.quality!=='ok' && Math.random()<0.18) l.quality='ok';
+        });
+
+        // emit a few events
+        const vertical = pick(verticals.map(v=>v[0]));
+        const cat = pick(['guardian','settlement','workflow','trust']);
+        const s = pick(scenarios[cat]);
+        const corr = correlation();
+
+        emit({
+          ts: nowIso(),
+          correlation_id: corr,
+          vertical,
+          action: s.action,
+          severity: s.sev,
+          path: cat,
+        });
+
+        // update last correlation on some nodes
+        const touched = ['event', cat==='guardian'?'guardian':(cat==='settlement'?'settlement':(cat==='workflow'?'workflow':'trust')), vertical ];
+        nodes.forEach(nn => { if(touched.includes(nn.id)) nn.metrics.corr = corr; });
+      }
+
+      // System metrics
+      function systemSnapshot(){
+        const eps = links.reduce((acc,l)=> acc + l.rate, 0) / Math.max(1, links.length/10);
+        const coreHealth = Math.round(nodes.reduce((acc,n)=>acc+n.health,0)/nodes.length);
+        const orchLoad = Math.round(rnd(2, 24));
+        return { eps: Math.max(0.2, eps), health: coreHealth, orchLoad };
+      }
+
+      function personaFor(nodeId, type){
+        if(nodeId==='core') return persona.core;
+        if(persona[nodeId]) return persona[nodeId];
+        if(type==='agent') return persona.agent;
+        if(type==='vertical') return persona.vertical;
+        return { rim:'rgba(255,255,255,.6)', glow:'rgba(255,255,255,.10)', hint:'NODE' };
+      }
+
+      return {
+        nodes, links, statePalette, personaFor,
+        onEvent, tick, systemSnapshot,
+        stress: {
+          force: (key, level, holdTicks) => StressSim.force(key, level, holdTicks),
+          calm: (holdTicks) => StressSim.calm(holdTicks),
+        },
+      };
+    })();
+
+    // -------------------------------
+    // 2) Runtime State Engine
+    // -------------------------------
+    const RuntimeStateEngine = (() => {
+      let selectedId = 'core';
+      const listeners = new Set();
+      const setSelected = (id) => { selectedId = id; listeners.forEach(fn=>fn(selectedId)); };
+      const onSelect = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+      return { get selectedId(){return selectedId;}, setSelected, onSelect };
+    })();
+
+    // -------------------------------
+    // 3) Event Streams (ticker)
+    // -------------------------------
+    const UIState = (() => {
+      let mode = 'observability';
+      let drill = null; // { corr, vertical, id, ts }
+      let drillView = 'all'; // all | guardian | workflow | settlement | trust | ai | approvals | retries
+      let recordMode = false;
+      let hoveredId = null;
+      const subs = new Set();
+      const drillSubs = new Set();
+      function setMode(m){ mode = m; subs.forEach(fn=>fn(mode)); }
+      function setDrill(next){
+        drill = next;
+        if(!next) drillView = 'all';
+        drillSubs.forEach(fn=>fn(drill));
+      }
+      function clearDrill(){ setDrill(null); }
+      function setDrillView(v){ drillView = v; drillSubs.forEach(fn=>fn(drill)); }
+      function setRecordMode(v){ recordMode = !!v; }
+      function setHovered(id){ hoveredId = id; }
+      return {
+        get mode(){return mode;},
+        get drill(){return drill;},
+        get drillView(){return drillView;},
+        get recordMode(){return recordMode;},
+        get hoveredId(){return hoveredId;},
+        setMode,
+        setDrill,
+        clearDrill,
+        setDrillView,
+        setRecordMode,
+        setHovered,
+        onMode:(fn)=>{subs.add(fn); return ()=>subs.delete(fn);},
+        onDrill:(fn)=>{drillSubs.add(fn); return ()=>drillSubs.delete(fn);},
+      };
+    })();
+
+    // -------------------------------
+    // Workflow Runtime (derived view over core_events)
+    // -------------------------------
+    const WorkflowRuntime = (() => {
+      const wf = new Map(); // key: vertical|workflow_id
+      const retries = [];   // [{id, vertical, kind, attempt, backoff_s, next_at, corr}]
+      const approvals = []; // [{id, vertical, kind, awaiting, expires_at, corr}]
+
+      function now(){ return Date.now(); }
+      function ageMs(since){ return Math.max(0, now() - since); }
+      function fmtAge(ms){
+        const m = Math.floor(ms/60000);
+        if(m < 1) return `${Math.floor(ms/1000)}s`;
+        if(m < 60) return `${m}m`;
+        const h = Math.floor(m/60);
+        const mm = m%60;
+        return `${h}h${mm?` ${mm}m`:''}`;
+      }
+
+      function workflowId(evt){
+        // Prefer entity_id if provided; else corr; else synth.
+        const ent = evt?.entity_id ? String(evt.entity_id) : null;
+        const corr = evt?.correlation_id ? String(evt.correlation_id) : null;
+        return ent || corr || `wf-${Math.random().toString(16).slice(2,8)}`;
+      }
+
+      function classify(evt){
+        const v = String(evt?.vertical || 'core').toLowerCase();
+        const a = String(evt?.action || '').toLowerCase();
+        // Mediadora-ish
+        if(v.includes('mediadora')){
+          if(a.includes('proposal') || a.includes('agreement.created')) return 'proposal_created';
+          if(a.includes('guardian.review') || a.includes('review_required')) return 'guardian_review';
+          if(a.includes('signature') || a.includes('pending_signature')) return 'pending_signature';
+          if(a.includes('settlement.queued') || a.includes('settlement_pending')) return 'settlement_queued';
+          if(a.includes('settlement.confirmed') || a.includes('completed')) return 'settlement_confirmed';
+        }
+        // Audio-ish
+        if(v.includes('audio')){
+          if(a.includes('split') && a.includes('proposed')) return 'split_proposed';
+          if(a.includes('accept')) return 'split_acceptance';
+          if(a.includes('payout') && a.includes('queued')) return 'payout_queued';
+          if(a.includes('settlement.confirmed') || a.includes('completed')) return 'settlement_confirmed';
+        }
+        // Generic
+        if(a.includes('workflow.transition')) return 'transition';
+        if(a.includes('retry')) return 'retry';
+        if(a.includes('approve') || a.includes('accept')) return 'approval';
+        if(a.includes('blocked') || a.includes('block')) return 'blocked';
+        return 'event';
+      }
+
+      function deriveState(evt){
+        const a = String(evt?.action || '').toLowerCase();
+        const sev = String(evt?.severity || 'info').toLowerCase();
+        if(a.includes('pending_signature')) return 'pending_signature';
+        if(a.includes('review_required') || (a.includes('guardian') && sev==='warn')) return 'guardian_review';
+        if(a.includes('settlement.queued') || a.includes('settlement_pending')) return 'settlement_queued';
+        if(a.includes('settlement.confirmed') || a.includes('completed')) return 'settlement_confirmed';
+        if(a.includes('retry')) return 'retry_scheduled';
+        if(a.includes('block')) return 'blocked';
+        return classify(evt);
+      }
+
+      function ingest(evt){
+        const vertical = String(evt?.vertical || 'core').toLowerCase();
+        // Only track vertical workflows
+        if(!['audio','mediadora','finance','tourism','international'].some(x=>vertical.includes(x))) return;
+
+        const id = workflowId(evt);
+        const key = `${vertical}|${id}`;
+        const ts = evt?.ts ? new Date(String(evt.ts)).getTime() : now();
+        const cur = wf.get(key) || {
+          id,
+          vertical,
+          createdAt: ts,
+          updatedAt: ts,
+          state: 'init',
+          severity: 'info',
+          corr: evt?.correlation_id || null,
+          steps: [],
+          blocked: false,
+        };
+
+        const nextState = deriveState(evt);
+        cur.updatedAt = Math.max(cur.updatedAt, ts);
+        cur.state = nextState;
+        cur.severity = String(evt?.severity || cur.severity || 'info').toLowerCase();
+        cur.corr = evt?.correlation_id || cur.corr;
+        cur.blocked = nextState==='blocked' || String(evt?.action||'').toLowerCase().includes('blocked');
+        cur.steps.unshift({ ts, action: String(evt?.action||''), severity: cur.severity });
+        cur.steps = cur.steps.slice(0, 12);
+        wf.set(key, cur);
+
+        // Derive queues (lightweight heuristics)
+        const a = String(evt?.action || '').toLowerCase();
+        if(a.includes('retry')){
+          retries.unshift({
+            id: `${id}:${ts}`,
+            vertical,
+            kind: a.includes('guardian') ? 'guardian_review_retry' : 'workflow_retry',
+            attempt: 1 + Math.floor(Math.random()*3),
+            backoff_s: [10,30,60,120][Math.floor(Math.random()*4)],
+            next_at: ts + [10,30,60,120][Math.floor(Math.random()*4)]*1000,
+            corr: cur.corr,
+          });
+          while(retries.length>12) retries.pop();
+        }
+        if(a.includes('pending') && (a.includes('accept') || a.includes('signature') || a.includes('approval'))){
+          approvals.unshift({
+            id: `${id}:${ts}`,
+            vertical,
+            kind: a.includes('signature') ? 'pending_signature' : 'pending_approval',
+            awaiting: a.includes('collab') ? 'collaborator' : 'counterparty',
+            expires_at: ts + 2*60*60*1000,
+            corr: cur.corr,
+          });
+          while(approvals.length>12) approvals.pop();
+        }
+      }
+
+      function activeWorkflows(){
+        const all = Array.from(wf.values());
+        // sort: blocked/high first, then newest
+        all.sort((a,b)=>{
+          const sa = (a.blocked?10:0) + (a.severity==='critical'?4:a.severity==='high'?3:a.severity==='warn'?2:1);
+          const sb = (b.blocked?10:0) + (b.severity==='critical'?4:b.severity==='high'?3:b.severity==='warn'?2:1);
+          if(sa!==sb) return sb-sa;
+          return b.updatedAt - a.updatedAt;
+        });
+        return all.slice(0, 10).map(x=>({
+          ...x,
+          age: fmtAge(ageMs(x.createdAt)),
+          updatedAgo: fmtAge(ageMs(x.updatedAt)),
+        }));
+      }
+
+      function retryQueue(){
+        const t = now();
+        return retries
+          .slice()
+          .sort((a,b)=> (a.next_at - b.next_at))
+          .slice(0, 8)
+          .map(r=>({
+            ...r,
+            eta: r.next_at <= t ? 'now' : fmtAge(r.next_at - t),
+          }));
+      }
+
+      function pendingApprovals(){
+        const t = now();
+        return approvals
+          .filter(a=>a.expires_at > t)
+          .slice(0, 8)
+          .map(a=>({ ...a, expiresIn: fmtAge(a.expires_at - t) }));
+      }
+
+      function blockedStates(){
+        return activeWorkflows().filter(w=>w.blocked || w.state==='guardian_review' || w.severity==='warn' || w.severity==='high').slice(0, 6);
+      }
+
+      function byCorr(corr){
+        const c = String(corr||'');
+        if(!c) return null;
+        const all = Array.from(wf.values());
+        return all.find(x=>String(x.corr||'')===c) || null;
+      }
+
+      return { ingest, activeWorkflows, retryQueue, pendingApprovals, blockedStates, byCorr };
+    })();
+
+    const EventStreams = (() => {
+      const buf = [];
+      let paused = false;
+      const max = 120;
+
+      function push(evt){
+        if(paused) return;
+        buf.unshift({ raw: evt });
+        while(buf.length>max) buf.pop();
+      }
+
+      return {
+        get paused(){ return paused; },
+        set paused(v){ paused = !!v; },
+        clear(){ buf.length = 0; },
+        items(){ return buf.slice(); },
+        push,
+        byCorr(corr){
+          const c = String(corr||'');
+          if(!c) return [];
+          return buf.map(x=>x.raw).filter(e => String(e?.correlation_id||'')===c);
+        },
+      };
+    })();
+
+    // -------------------------------
+    // 4) Motion System (timebase)
+    // -------------------------------
+    const MotionSystem = (() => {
+      let t0 = performance.now();
+      let last = t0;
+      return {
+        now(){
+          const t = performance.now();
+          const dt = Math.min(0.05, (t-last)/1000);
+          last = t;
+          return { t:(t-t0)/1000, dt };
+        }
+      };
+    })();
+
+    // -------------------------------
+    // Event Reactor (operational realism)
+    // -------------------------------
+    const EventReactor = (() => {
+      // ephemeral link boosts + particles bursts
+      const linkHot = new Map(); // key: from>to|kind -> untilTs
+      let severityGlow = 0; // global overlay intensity
+
+      function sevLevel(sev){
+        const s = String(sev||'info').toLowerCase();
+        if(s==='critical') return 4;
+        if(s==='high') return 3;
+        if(s==='warn') return 2;
+        return 1;
+      }
+
+      function engineFrom(evt){
+        const p = String(evt?.path || evt?.engine || '').toLowerCase();
+        const a = String(evt?.action || '').toLowerCase();
+        if(p) return p;
+        if(a.includes('guardian')) return 'guardian';
+        if(a.includes('settlement') || a.includes('payout')) return 'settlement';
+        if(a.includes('workflow')) return 'workflow';
+        if(a.includes('incident') || a.includes('anomaly') || a.includes('trust')) return 'trust';
+        return 'event';
+      }
+
+      function touchNode(id, sev){
+        const n = OperationalDataLayer.nodes.find(x=>x.id===id);
+        if(!n) return;
+        const lvl = sevLevel(sev);
+        n.fx.pulse = Math.min(1, n.fx.pulse + 0.25*lvl);
+        // pending/review should feel "stuck" not "shaking". Shake only on high/critical.
+        n.fx.shake = Math.min(1, n.fx.shake + (lvl>=3?0.40:0.06));
+        n.fx.hotUntil = Date.now() + 1400 + lvl*300;
+        n.fx.lastSev = String(sev||'info').toLowerCase();
+        // surface minimal state changes
+        if(lvl>=4) n.state = 'blocked';
+        else if(lvl>=3) n.state = 'degraded';
+        else if(String(sev||'').toLowerCase()==='warn') n.state = 'review-required';
+      }
+
+      function hotLink(from,to,kind,sev){
+        const lvl = sevLevel(sev);
+        const k = `${from}>${to}|${kind}`;
+        linkHot.set(k, Date.now() + 900 + lvl*250);
+      }
+
+      function ingest(evt){
+        // If in drill mode, react only to same correlation_id (reduces noise)
+        const drill = UIState.drill;
+        if(drill?.corr && String(evt?.correlation_id||'') && String(evt.correlation_id) !== String(drill.corr)) {
+          return;
+        }
+        const engine = engineFrom(evt);
+        const vertical = String(evt?.vertical || 'core').toLowerCase();
+        const sev = String(evt?.severity || 'info').toLowerCase();
+
+        // global overlay grows with severity
+        severityGlow = Math.min(1, severityGlow + (sevLevel(sev)-1)*0.18);
+
+        // Touch vertical, engine, core, event engine.
+        if(OperationalDataLayer.nodes.some(x=>x.id===vertical)) touchNode(vertical, sev);
+        if(OperationalDataLayer.nodes.some(x=>x.id===engine)) touchNode(engine, sev);
+        touchNode('event', sev);
+        touchNode('core', sev);
+
+        // Streams: vertical -> engine -> event -> core
+        hotLink(vertical, engine, engine, sev);
+        hotLink(engine, 'event', 'events', sev);
+        hotLink('event', 'core', 'events', sev);
+
+        // Special cases
+        if(engine==='guardian') hotLink(vertical,'guardian','guardian',sev);
+        if(engine==='settlement') hotLink('workflow','settlement','settlement',sev);
+        if(engine==='trust') hotLink('trust','core','events',sev);
+      }
+
+      function linkHeat(from,to,kind){
+        const k = `${from}>${to}|${kind}`;
+        const u = linkHot.get(k);
+        if(!u) return 0;
+        const d = u - Date.now();
+        if(d<=0){ linkHot.delete(k); return 0; }
+        return Math.min(1, d/1200);
+      }
+
+      function step(dt){
+        // decay global severity glow
+        severityGlow = Math.max(0, severityGlow - dt*0.18);
+        // decay node fx
+        OperationalDataLayer.nodes.forEach(n=>{
+          n.fx.pulse = Math.max(0, n.fx.pulse - dt*0.65);
+          n.fx.shake = Math.max(0, n.fx.shake - dt*0.55);
+        });
+      }
+
+      return { ingest, linkHeat, step, get severityGlow(){return severityGlow;} };
+    })();
+
+    function applyDrillBodyClass(){
+      document.body.classList.toggle('drill-active', !!UIState.drill?.corr);
+    }
+
+    // -------------------------------
+    // 5) Visual Orbit Engine (canvas)
+    // -------------------------------
+    const VisualOrbitEngine = (() => {
+      const canvas = document.getElementById('scene');
+      const ctx = canvas.getContext('2d');
+      const dpr = () => Math.max(1, Math.min(2.5, window.devicePixelRatio||1));
+
+      // Cheap deterministic pseudo-noise (avoid perfectly periodic infra)
+      function noise01(x){
+        const s = Math.sin(x*12.9898) * 43758.5453123;
+        return s - Math.floor(s);
+      }
+      function noise11(x){ return noise01(x)*2 - 1; }
+
+      let W=0,H=0,CX=0,CY=0;
+      function resize(){
+        const r = canvas.getBoundingClientRect();
+        W = Math.max(300, r.width);
+        H = Math.max(300, r.height);
+        const p = dpr();
+        canvas.width = Math.floor(W*p);
+        canvas.height = Math.floor(H*p);
+        ctx.setTransform(p,0,0,p,0,0);
+        CX = W/2;
+        CY = H/2;
+      }
+
+      function drawGlow(x,y,rad,color,alpha){
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const g = ctx.createRadialGradient(x,y,0, x,y,rad);
+        g.addColorStop(0, color);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x,y,rad,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawRing(r, alpha, col){
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(CX,CY,r,0,Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function nodePos(n, t){
+        if(n.layer===1) return { x: CX, y: CY };
+        const a = n.orbit.a0 + t*n.orbit.w;
+        return { x: CX + Math.cos(a)*n.orbit.r, y: CY + Math.sin(a)*n.orbit.r };
+      }
+
+      function colorForState(state){
+        const p = OperationalDataLayer.statePalette[state] || OperationalDataLayer.statePalette.active;
+        return p;
+      }
+
+      function focusSet(){
+        const d = UIState.drill;
+        if(!d?.corr) return null;
+        const w = WorkflowRuntime.byCorr(d.corr);
+        const v = String(w?.vertical || d.vertical || '').toLowerCase();
+        const set = new Set(['core','event','workflow','guardian','settlement']);
+        if(v) set.add(v);
+        if(String(w?.state||'').includes('blocked') || String(w?.state||'').includes('review') || String(w?.severity||'')==='high' || String(w?.severity||'')==='critical') {
+          set.add('trust');
+        }
+        return set;
+      }
+
+      function drawLink(l, posById){
+        const a = posById.get(l.from);
+        const b = posById.get(l.to);
+        if(!a||!b) return;
+
+        const fset = focusSet();
+        const isFocus = fset ? (fset.has(l.from) && fset.has(l.to)) : true;
+
+        const m = UIState.mode;
+        const focus = (m==='observability')
+          ? 1
+          : (m==='workflows' && l.kind==='workflow')
+            ? 1
+            : (m==='settlements' && l.kind==='settlement')
+              ? 1
+              : (m==='guardian' && l.kind==='guardian')
+                ? 1
+                : (m==='incidents' && (l.from==='trust' || l.to==='trust'))
+                  ? 1
+                  : (m==='agents' && (l.from==='core' && String(l.to||'').includes('gugo')))
+                    ? 1
+                    : 0.25;
+
+        // Aggressive spotlight during drill
+        const drillFade = fset ? (isFocus ? 1 : 0.025) : 1;
+
+        const heat = EventReactor.linkHeat(l.from, l.to, l.kind);
+
+        // Link-level congestion: slow streams, reduce density, introduce interruptions.
+        const stressP = (id) => (OperationalDataLayer.nodes.find(n=>n.id===id)?.stress?.p || 0);
+        const edgeP = Math.max(stressP(l.from), stressP(l.to));
+        const congested = edgeP > 0.55;
+
+        // Domain physics by link kind (operational personality)
+        const phys0 = (() => {
+          if(l.kind==='guardian') return { speed:0.75, dens:0.7, width:1.2, alpha:1.05 };
+          if(l.kind==='workflow') return { speed:0.95, dens:0.9, width:1.1, alpha:1.00 };
+          if(l.kind==='settlement') return { speed:1.10, dens:1.0, width:1.25, alpha:1.08 };
+          if(l.kind==='events') return { speed:1.35, dens:1.35, width:1.05, alpha:1.05 };
+          if(l.kind==='notification') return { speed:0.90, dens:0.8, width:1.0, alpha:0.95 };
+          return { speed:1.0, dens:1.0, width:1.0, alpha:1.0 };
+        })();
+
+        // Congestion scaling (kind-aware)
+        const slowK = (l.kind==='settlement') ? 0.62 : (l.kind==='workflow') ? 0.55 : (l.kind==='guardian') ? 0.48 : 0.35;
+        const densK = (l.kind==='settlement') ? 0.58 : (l.kind==='workflow') ? 0.62 : (l.kind==='guardian') ? 0.68 : 0.75;
+        const phys = {
+          ...phys0,
+          speed: Math.max(0.08, phys0.speed * (1 - edgeP*slowK)),
+          dens:  Math.max(0.10, phys0.dens  * (1 - edgeP*densK)),
+          alpha: phys0.alpha * (congested ? (0.88 - edgeP*0.22) : 1),
+        };
+        const spineBoost = (fset && isFocus) ? 1.25 : 1;
+        const baseAlpha = phys.alpha * spineBoost * drillFade * focus * Math.min(0.30, 0.06 + l.rate*0.06 + heat*0.20);
+        const kindCol = (() => {
+          if(l.kind==='guardian') return 'rgba(64,245,255,.55)';
+          if(l.kind==='settlement') return 'rgba(139,92,246,.55)';
+          if(l.kind==='workflow') return 'rgba(76,125,255,.50)';
+          if(l.kind==='notification') return 'rgba(212,175,55,.45)';
+          return 'rgba(255,255,255,.35)';
+        })();
+
+        // de-emphasize long, secondary links (spaghetti control)
+        const dist = Math.hypot(b.x-a.x, b.y-a.y);
+        const longFade = (UIState.mode==='observability' && dist > 360) ? 0.55 : 1;
+
+        // v24: keep Identity/Notification from visually pulling the center
+        const isSideInfra = (l.from==='identity' || l.to==='identity' || l.from==='notification' || l.to==='notification');
+        const sideFade = (UIState.mode==='observability' && isSideInfra) ? 0.45 : 1;
+
+        ctx.save();
+        ctx.globalAlpha = baseAlpha * longFade * sideFade;
+        ctx.strokeStyle = kindCol;
+        ctx.lineWidth = phys.width;
+        ctx.beginPath();
+        // subtle curve
+        const mx = (a.x+b.x)/2;
+        const my = (a.y+b.y)/2;
+        const dx = b.x-a.x;
+        const dy = b.y-a.y;
+        // curve more for long links and keep curvature sign stable to reduce visual chaos
+        const k = 0.08 + Math.min(0.10, dist/2200);
+        const sign = (l.from < l.to) ? 1 : -1;
+        const cx = mx - dy*k*sign;
+        const cy = my + dx*k*sign;
+        ctx.moveTo(a.x,a.y);
+        ctx.quadraticCurveTo(cx,cy,b.x,b.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // particles (event streams)
+        if(fset && !isFocus) return;
+        if(UIState.mode==='observability' && dist > 420 && l.kind==='events') {
+          // Reduce particles on very long event links in overview mode.
+          // Keeps the center readable.
+          return;
+        }
+        const rm = UIState.recordMode;
+        const particles = Math.min(rm ? 6 : 22, Math.max(1, Math.floor(phys.dens * (l.rate + heat*2.2)*(rm ? 1.2 : 3))));
+        for(let i=0;i<particles;i++){
+          // Retry-storm / congestion: intermittent stream fragmentation
+          if(l.kind==='workflow' && edgeP>0.72){
+            const tt = performance.now()/1000;
+            const gate = noise01(tt*2.1 + i*0.7 + (l.from.charCodeAt(0)||1));
+            if(gate < (edgeP-0.68)*0.55) continue;
+          }
+          const speed = phys.speed * ((rm ? 0.10 : 0.18) + l.rate*0.08 + heat*(rm ? 0.30 : 0.55));
+          const u = (performance.now()/1000*speed + i/particles) % 1;
+          // quadratic bezier point
+          const x = (1-u)*(1-u)*a.x + 2*(1-u)*u*cx + u*u*b.x;
+          const y = (1-u)*(1-u)*a.y + 2*(1-u)*u*cy + u*u*b.y;
+          const s = (0.9 + phys.width*0.25) + (l.rate*0.25) + heat*1.2;
+          ctx.save();
+          ctx.globalAlpha = (rm ? 0.18 : 0.30) + heat*(rm ? 0.18 : 0.35);
+          ctx.fillStyle = (l.quality==='ok') ? kindCol : (l.quality==='dropped' ? 'rgba(255,59,104,.75)' : 'rgba(255,207,74,.75)');
+          ctx.beginPath();
+          ctx.arc(x,y, s, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function drawNode(n, pos, t){
+        const isSelected = RuntimeStateEngine.selectedId === n.id;
+        const st = colorForState(n.state);
+        const pe = OperationalDataLayer.personaFor(n.id, n.type);
+
+        const stress = n.stress || { p:0, state:'NOMINAL', kind:'ambient' };
+        const p = Math.max(0, Math.min(1, stress.p||0));
+
+        const fset = focusSet();
+        // Aggressive spotlight during drill
+        const drillFade = fset ? (fset.has(n.id) ? 1 : 0.030) : 1;
+
+        const hovered = UIState.hoveredId === n.id;
+
+        const baseR = (n.layer===1) ? 37 : (n.layer===2 ? 17 : (n.layer===3 ? 14 : 15));
+
+        // Physics by domain
+        const pulseK0 = (() => {
+          if(n.id==='guardian' || n.id==='trust') return 1.35;     // slow heavy
+          if(n.id==='event') return 3.35;                          // electric
+          if(n.id==='workflow') return 2.25;                       // procedural
+          if(n.id==='settlement' || n.id==='finance') return 2.75;  // throughput
+          if(n.type==='agent') return 3.05;                         // cognition
+          return 2.1;
+        })();
+        // Under congestion, heartbeat slows / becomes irregular (infra realism)
+        const pulseSlow = (n.id==='guardian' || n.id==='settlement' || n.id==='workflow')
+          ? (1 - p * (n.id==='settlement' ? 0.40 : 0.30))
+          : 1;
+        const pulseK = Math.max(0.55, pulseK0 * pulseSlow);
+        const pulseAmp = (n.id==='guardian' || n.id==='trust') ? 0.18 : (n.id==='event' ? 0.30 : 0.25);
+        const pulse = (n.layer===1 ? 1.0 : 0.6) + Math.sin(t*pulseK + n.orbit.a0)*pulseAmp;
+
+        // Institutional damping: reduce micro-motion when not hot
+        const hot = (n.fx?.hotUntil || 0) > Date.now();
+        const damp = hot ? 1.0 : 0.55;
+        const fx = n.fx || { pulse:0, shake:0 };
+        const rm = UIState.recordMode;
+        const glowBoost = (fset && fset.has(n.id)) ? 1.18 : 1;
+        const flicker = (n.id==='guardian')
+          ? (0.55 + 0.45*noise01(t*3.2 + n.orbit.a0*9.1)) * p
+          : (n.id==='workflow')
+            ? (0.30 + 0.70*noise01(t*4.1 + n.orbit.a0*6.7)) * Math.max(0, p-0.45)
+            : 0;
+        const glowR = glowBoost * baseR* (isSelected? 4.4 : (n.layer===1 ? 5.6 : 3.4)) * (0.9 + pulse*0.06 + fx.pulse*(rm ? 0.10 : 0.22) + flicker*0.12);
+
+        // micro shake for degraded/high severity (reduced on non-focused nodes)
+        const opShake = (n.layer===1) ? 0 : (Math.max(0, p-0.42) * (n.id==='guardian' ? 0.55 : 0.85));
+        const shake = damp * (fx.shake + opShake) * (n.layer===1 ? 0.0 : 1.0) * (fset && !fset.has(n.id) ? 0.15 : 1);
+        // Irregular vibration (avoid steady sine)
+        const sx = (noise11(t*11.0 + n.orbit.a0*13) * 1.55 + Math.sin(t*37 + n.orbit.a0*13) * 0.35) * shake;
+        const sy = (noise11(t*12.4 + n.orbit.a0*7)  * 1.55 + Math.cos(t*41 + n.orbit.a0*7)  * 0.35) * shake;
+        const px = pos.x + sx;
+        const py = pos.y + sy;
+
+        // glow
+        const glowA = drillFade * (n.layer===1?0.88:0.52) * (isSelected?1.18:1);
+        drawGlow(px, py, glowR, pe.glow, glowA);
+
+        // Stress halos (operational pressure signals)
+        if(n.id==='guardian' && p>0.48){
+          // amber unstable glow
+          drawGlow(px, py, baseR*(5.1 + p*2.0), 'rgba(255,207,74,.20)', glowA * (0.22 + flicker*0.25));
+        }
+        if(n.id==='settlement' && p>0.55){
+          // financial warning halo
+          drawGlow(px, py, baseR*(5.3 + p*2.2), 'rgba(44,255,157,.14)', glowA * 0.18);
+          drawGlow(px, py, baseR*(6.2 + p*2.6), 'rgba(255,207,74,.18)', glowA * 0.16);
+        }
+        if(n.id==='workflow' && p>0.60){
+          // retry turbulence halo (subtle)
+          drawGlow(px, py, baseR*(5.0 + p*1.8), 'rgba(76,125,255,.16)', glowA * (0.14 + flicker*0.10));
+        }
+
+        // core nucleus layering
+        if(n.layer===1){
+          drawGlow(px, py, 160, 'rgba(64,245,255,.06)', 1);
+          drawGlow(px, py, 220, 'rgba(139,92,246,.05)', 1);
+          drawGlow(px, py, 280, 'rgba(212,175,55,.035)', 1);
+        }
+
+        // body
+        ctx.save();
+        ctx.globalAlpha = drillFade;
+        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        ctx.strokeStyle = 'rgba(255,255,255,.16)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px,py, baseR, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+
+        // state rim (persona + state)
+        ctx.globalAlpha = 0.88;
+        ctx.lineWidth = isSelected ? 2.2 : 1.25;
+        ctx.beginPath();
+        ctx.strokeStyle = pe.rim;
+        ctx.arc(px,py, baseR+1.5, 0, Math.PI*2);
+        ctx.stroke();
+
+        // selected double-ring (operational clarity)
+        if(isSelected){
+          ctx.globalAlpha = 0.55;
+          ctx.strokeStyle = 'rgba(255,255,255,.55)';
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.arc(px,py, baseR+4.0, 0, Math.PI*2);
+          ctx.stroke();
+        }
+
+        // blocked stamp (harder, less "glowy")
+        if(n.state==='blocked'){
+          ctx.globalAlpha = 0.85;
+          ctx.strokeStyle = 'rgba(255,59,104,.85)';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(px,py, baseR+6.5, 0, Math.PI*2);
+          ctx.stroke();
+        }
+
+        // agent scanning ring
+        if(n.type==='agent'){
+          ctx.globalAlpha = (rm ? 0.10 : 0.18) + fx.pulse*(rm ? 0.12 : 0.25);
+          ctx.strokeStyle = 'rgba(64,245,255,.75)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(px,py, baseR+6 + Math.sin(t*2.6 + n.orbit.a0)*1.5, t*0.9, t*0.9 + Math.PI*1.3);
+          ctx.stroke();
+        }
+
+        // label: default tenuous, activate on hover/selected/focus
+        const label = (n.layer===1) ? 'CORE' : (pe.hint || n.label).toUpperCase();
+        const fontSize = (n.layer===1) ? 12 : 12;
+        ctx.font = `${fontSize}px ` + getComputedStyle(document.documentElement).getPropertyValue('--mono');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const ty = py + baseR + 8;
+        const tw = ctx.measureText(label).width;
+        const padX = 7;
+        const padY = 4;
+
+        const isCritical = (n.layer===1) || (n.layer===2);
+        const isHot = (n.fx?.hotUntil || 0) > Date.now();
+        const isStateImportant = (n.state && n.state !== 'active');
+        // Auto-contrast: peripheral labels stay tenuous unless they're hot/important
+        const shouldShow = isCritical || isSelected || hovered || (fset && fset.has(n.id)) || isHot || isStateImportant;
+        const labelAlpha = shouldShow ? (drillFade * 0.96) : (drillFade * 0.16);
+
+        const strongPlate = isCritical || isSelected || hovered || (fset && fset.has(n.id));
+        if(shouldShow){
+          // background plate only when activated
+          ctx.save();
+          ctx.globalAlpha = drillFade * (UIState.recordMode ? 0.55 : (strongPlate ? 0.44 : 0.32));
+          ctx.fillStyle = 'rgba(0,0,0,.62)';
+          const x = px - tw/2 - padX;
+          const y = ty - padY;
+          const w = tw + padX*2;
+          const h = fontSize + padY*2;
+          const r = 8;
+          ctx.beginPath();
+          ctx.moveTo(x+r, y);
+          ctx.arcTo(x+w, y, x+w, y+h, r);
+          ctx.arcTo(x+w, y+h, x, y+h, r);
+          ctx.arcTo(x, y+h, x, y, r);
+          ctx.arcTo(x, y, x+w, y, r);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // outline + fill (always draw, but tenuous when not relevant)
+        ctx.save();
+        ctx.globalAlpha = labelAlpha;
+        ctx.lineWidth = shouldShow ? 3 : 2;
+        ctx.strokeStyle = 'rgba(0,0,0,.72)';
+        ctx.strokeText(label, px, ty);
+        ctx.fillStyle = shouldShow ? 'rgba(245,247,255,.96)' : 'rgba(233,236,255,.78)';
+        ctx.fillText(label, px, ty);
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function drawBackdrop(t){
+        // orbital rings
+        const fset = focusSet();
+        const a1 = fset ? 0.05 : 0.14;
+        const a2 = fset ? 0.04 : 0.10;
+        const a3 = fset ? 0.03 : 0.08;
+        drawRing(170, a1, 'rgba(255,255,255,.22)');
+        drawRing(290, a2, 'rgba(255,255,255,.18)');
+        drawRing(420, a3, 'rgba(255,255,255,.16)');
+
+        // faint rotating sweep
+        ctx.save();
+        ctx.translate(CX,CY);
+        ctx.rotate(t*0.03);
+        ctx.globalAlpha = focusSet() ? 0.02 : 0.06;
+        ctx.strokeStyle = 'rgba(64,245,255,.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0,0, 260, -0.18, 0.18);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPipelineOverlay(posById){
+        if(UIState.mode !== 'workflows') return;
+
+        // Highlight active verticals (top workflows)
+        const active = WorkflowRuntime.activeWorkflows();
+        const actV = Array.from(new Set(active.map(w => String(w.vertical||'').toLowerCase())));
+
+        function drawPath(from,to,col,alpha,width){
+          const a = posById.get(from);
+          const b = posById.get(to);
+          if(!a||!b) return;
+          const mx = (a.x+b.x)/2;
+          const my = (a.y+b.y)/2;
+          const dx = b.x-a.x;
+          const dy = b.y-a.y;
+          const k = 0.10;
+          const cx = mx - dy*k;
+          const cy = my + dx*k;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = col;
+          ctx.lineWidth = width;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y);
+          ctx.quadraticCurveTo(cx,cy,b.x,b.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Base spine (workflow pipeline) — more solid, less glow-fight
+        drawPath('workflow','guardian','rgba(212,175,55,.62)',0.40,2.6);
+        drawPath('guardian','settlement','rgba(44,255,157,.58)',0.36,2.4);
+        drawPath('settlement','event','rgba(139,92,246,.60)',0.36,2.4);
+        drawPath('event','core','rgba(64,245,255,.58)',0.34,2.2);
+
+        // Active verticals to workflow
+        actV.forEach(v => {
+          const sev = (active.find(x=>String(x.vertical).toLowerCase()===v)?.severity)||'info';
+          const lvl = (String(sev).toLowerCase()==='critical')?4:(String(sev).toLowerCase()==='high')?3:(String(sev).toLowerCase()==='warn')?2:1;
+          const col = lvl>=3 ? 'rgba(255,59,104,.55)' : (lvl===2 ? 'rgba(255,207,74,.55)' : 'rgba(76,125,255,.45)');
+          const w = 1.2 + lvl*0.7;
+          const a = 0.14 + lvl*0.10;
+          drawPath(v,'workflow',col,a,w);
+        });
+      }
+
+      function hitTest(x,y, posById){
+        let best = null;
+        let bestD = 1e9;
+        OperationalDataLayer.nodes.forEach(n => {
+          const p = posById.get(n.id);
+          if(!p) return;
+          const r = (n.layer===1) ? 40 : 22;
+          const dx = x-p.x, dy = y-p.y;
+          const d = Math.sqrt(dx*dx+dy*dy);
+          if(d<r && d<bestD){ best = n; bestD = d; }
+        });
+        return best;
+      }
+
+      function frame(){
+        const { t, dt } = MotionSystem.now();
+        EventReactor.step(dt);
+        ctx.clearRect(0,0,W,H);
+        drawBackdrop(t);
+
+        const posById = new Map();
+        OperationalDataLayer.nodes.forEach(n => posById.set(n.id, nodePos(n,t)));
+
+        // links first
+        OperationalDataLayer.links.forEach(l => drawLink(l, posById));
+
+        // WF overlay (explicit pipeline)
+        drawPipelineOverlay(posById);
+
+        // nodes
+        OperationalDataLayer.nodes.forEach(n => drawNode(n, posById.get(n.id), t));
+
+        // severity overlay (operational realism)
+        const sg = EventReactor.severityGlow;
+        if(!UIState.recordMode && sg > 0.01){
+          ctx.save();
+          ctx.globalAlpha = Math.min(0.16, sg*0.16);
+          ctx.fillStyle = 'rgba(255,207,74,.30)';
+          ctx.fillRect(0,0,W,H);
+          ctx.restore();
+        }
+
+        // interactions
+        canvas._posById = posById;
+
+        requestAnimationFrame(frame);
+      }
+
+      function mount(){
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Hover (desktop) — make labels activate without competing
+        canvas.addEventListener('mousemove', (ev) => {
+          const r = canvas.getBoundingClientRect();
+          const x = ev.clientX - r.left;
+          const y = ev.clientY - r.top;
+          const n = hitTest(x,y, canvas._posById);
+          UIState.setHovered(n ? n.id : null);
+          canvas.style.cursor = n ? 'pointer' : 'default';
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+          UIState.setHovered(null);
+          canvas.style.cursor = 'default';
+        });
+
+        canvas.addEventListener('click', (ev) => {
+          const r = canvas.getBoundingClientRect();
+          const x = ev.clientX - r.left;
+          const y = ev.clientY - r.top;
+          const n = hitTest(x,y, canvas._posById);
+          if(n) RuntimeStateEngine.setSelected(n.id);
+        });
+
+        // Touch hint: tap-and-hold like hover for 2s
+        canvas.addEventListener('touchstart', (ev) => {
+          try{
+            const t = ev.touches?.[0];
+            if(!t) return;
+            const r = canvas.getBoundingClientRect();
+            const x = t.clientX - r.left;
+            const y = t.clientY - r.top;
+            const n = hitTest(x,y, canvas._posById);
+            if(n){
+              UIState.setHovered(n.id);
+              setTimeout(() => { if(UIState.hoveredId === n.id) UIState.setHovered(null); }, 2000);
+            }
+          } catch {}
+        }, { passive: true });
+
+        requestAnimationFrame(frame);
+      }
+
+      return { mount };
+    })();
+
+    // -------------------------------
+    // UI binding
+    // -------------------------------
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      healthDot: $('healthDot'), healthScore: $('healthScore'), eps: $('eps'), orch: $('orch'),
+      ticker: $('ticker'), pauseBtn: $('pauseBtn'), clearBtn: $('clearBtn'),
+      drillClear: $('drillClear'),
+      selId: $('selId'), selType: $('selType'), selState: $('selState'), selHealth: $('selHealth'),
+      selEpm: $('selEpm'), selP95: $('selP95'), selQueue: $('selQueue'), selCorr: $('selCorr'),
+      selWarnings: $('selWarnings'), sysDot: $('sysDot'),
+      runtimeLabel: $('runtimeLabel'),
+      connectBtn: $('connectBtn'),
+      emitBtn: $('emitBtn'),
+      connectModal: $('connectModal'),
+      supUrl: $('supUrl'),
+      supAnon: $('supAnon'),
+      connectCancel: $('connectCancel'),
+      connectSave: $('connectSave'),
+      recordBtn: $('recordBtn'),
+      scnGuardian: $('scnGuardian'),
+      scnSettlement: $('scnSettlement'),
+      scnRetry: $('scnRetry'),
+      scnCalm: $('scnCalm'),
+    };
+
+    const ContextPanels = (() => {
+      let original = null;
+      function snapshot(){
+        const host = document.querySelector('aside.context');
+        if(host && original === null) original = host.innerHTML;
+      }
+      function restore(){
+        const host = document.querySelector('aside.context');
+        if(host && original !== null) host.innerHTML = original;
+      }
+      return { snapshot, restore };
+    })();
+
+    // Scenario controls (stress states)
+    (function bindScenarios(){
+      const safe = (fn)=>{ try{ fn(); } catch(e){ console.warn('scenario error', e); } };
+      if(els.scnGuardian) els.scnGuardian.addEventListener('click', ()=> safe(()=>{
+        OperationalDataLayer.stress.force('guardian', 0.88, 110);
+        // also nudge workflow a bit to feel propagation immediately
+        OperationalDataLayer.stress.force('workflow', 0.68, 70);
+      }));
+      if(els.scnSettlement) els.scnSettlement.addEventListener('click', ()=> safe(()=>{
+        OperationalDataLayer.stress.force('settlement', 0.90, 120);
+        OperationalDataLayer.stress.force('workflow', 0.62, 65);
+      }));
+      if(els.scnRetry) els.scnRetry.addEventListener('click', ()=> safe(()=>{
+        OperationalDataLayer.stress.force('workflow', 0.92, 130);
+        // retry storms usually coincide with governance or settlement friction
+        OperationalDataLayer.stress.force('guardian', 0.62, 60);
+      }));
+      if(els.scnCalm) els.scnCalm.addEventListener('click', ()=> safe(()=>{
+        OperationalDataLayer.stress.calm(95);
+      }));
+    })();
+
+    async function refreshAuthUi(){
+      try{
+        const res = await fetch('/api/auth/status', { cache: 'no-store' });
+        if(!res.ok) throw new Error(`auth status http ${res.status}`);
+        const j = await res.json();
+        const authed = !!j?.authenticated;
+        // EMIT is an operator action → show only when authenticated.
+        els.emitBtn.style.display = authed ? '' : 'none';
+      } catch {
+        els.emitBtn.style.display = 'none';
+      }
+    }
+
+    // -------------------------------
+    // Minimal real Event Engine hookup
+    // Priority: same-origin Core API (mobile-safe) → Supabase direct (optional)
+    // -------------------------------
+
+    const InternalCoreApi = (() => {
+      let stop = null;
+      let lastTs = null;
+
+      async function probe(){
+        const res = await fetch('/api/core-events?limit=1', { cache: 'no-store' });
+        if(!res.ok) throw new Error(`core api probe failed: HTTP ${res.status}`);
+        const j = await res.json();
+        if(!j || j.ok !== true) throw new Error('core api invalid response');
+        return true;
+      }
+
+      async function loadInitial(limit=25){
+        const res = await fetch(`/api/core-events?limit=${encodeURIComponent(limit)}`, { cache: 'no-store' });
+        if(!res.ok) throw new Error(`core api load failed: HTTP ${res.status}`);
+        const j = await res.json();
+        const rows = (j.events || []).slice().reverse();
+        rows.forEach(row => {
+          EventStreams.push({
+            ts: row.ts,
+            correlation_id: row.correlation_id,
+            vertical: row.vertical || 'core',
+            action: row.action,
+            severity: (row.severity || 'info'),
+            path: row.engine || 'event',
+            engine: row.engine || 'event',
+            payload: row.payload ?? null,
+            required_actions: row.required_actions ?? null,
+            allowed_scope: row.allowed_scope ?? null,
+            policy_version: row.policy_version ?? null,
+          });
+          lastTs = row.ts;
+        });
+        refreshTicker();
+      }
+
+      function startPolling(){
+        let stopped = false;
+        async function poll(){
+          if(stopped) return;
+          try{
+            const res = await fetch('/api/core-events?limit=10', { cache:'no-store' });
+            if(res.ok){
+              const j = await res.json();
+              const rows = (j.events || []).slice().reverse();
+              rows.forEach(row => {
+                if(lastTs && String(row.ts) <= String(lastTs)) return;
+                EventStreams.push({
+                  ts: row.ts,
+                  correlation_id: row.correlation_id,
+                  vertical: row.vertical || 'core',
+                  action: row.action,
+                  severity: (row.severity || 'info'),
+                  path: row.engine || 'event',
+                  engine: row.engine || 'event',
+                  payload: row.payload ?? null,
+                  required_actions: row.required_actions ?? null,
+                  allowed_scope: row.allowed_scope ?? null,
+                  policy_version: row.policy_version ?? null,
+                });
+                lastTs = row.ts;
+              });
+              refreshTicker();
+            }
+          } catch {}
+          setTimeout(poll, 2000);
+        }
+        poll();
+        stop = () => { stopped = true; };
+      }
+
+      return { probe, loadInitial, startPolling };
+    })();
+
+    const SupaEventEngine = (() => {
+      const LS_KEY = 'synora_core_supabase.v0';
+      let client = null;
+      let channel = null;
+      let connected = false;
+
+      function loadCfg(){
+        try{ return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { return null; }
+      }
+      function saveCfg(cfg){ localStorage.setItem(LS_KEY, JSON.stringify(cfg)); }
+
+      function normalizeKey(input){
+        let s = String(input || '').trim();
+        // Accept "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=..." pasted as a whole line
+        if(s.includes('=') && (s.startsWith('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') || s.startsWith('NEXT_PUBLIC_SUPABASE_ANON_KEY'))){
+          s = s.split('=').slice(1).join('=').trim();
+        }
+        // Mobile copy sometimes brings hidden newlines/spaces → invalid header value → fetch(TypeError)
+        s = s.replace(/\s+/g, '');
+        return s;
+      }
+      function normalizeUrl(input){
+        let s = String(input || '').trim();
+        if(s.includes('=') && s.startsWith('NEXT_PUBLIC_SUPABASE_URL')){
+          s = s.split('=').slice(1).join('=').trim();
+        }
+        s = s.replace(/\s+/g, '');
+        return s;
+      }
+
+      async function restSelectLatest({ url, anon, limit = 25 }){
+        const u = url.replace(/\/+$/, '') + `/rest/v1/core_events?select=ts,correlation_id,vertical,engine,action,severity&order=ts.desc&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(u, {
+          headers: { apikey: anon, authorization: `Bearer ${anon}` },
+          cache: 'no-store',
+        });
+        if(!res.ok){
+          const text = await res.text().catch(()=> '');
+          throw new Error(`REST select failed: HTTP ${res.status} ${text.slice(0,180)}`);
+        }
+        return await res.json();
+      }
+
+      function startRestPolling({ url, anon }){
+        let stopped = false;
+        let lastTs = null;
+
+        async function poll(){
+          if(stopped) return;
+          try{
+            const rows = await restSelectLatest({ url, anon, limit: 10 });
+            const ordered = (rows || []).slice().reverse();
+            ordered.forEach(row => {
+              if(lastTs && String(row.ts) <= String(lastTs)) return;
+              EventStreams.push({
+                ts: row.ts,
+                correlation_id: row.correlation_id,
+                vertical: row.vertical || 'core',
+                action: row.action,
+                severity: (row.severity || 'info'),
+                path: row.engine || 'event',
+              });
+              lastTs = row.ts;
+            });
+            refreshTicker();
+          } catch (e){
+            // keep quiet; show only once in console
+            console.warn('REST poll error', e);
+          }
+          setTimeout(poll, 2000);
+        }
+        poll();
+
+        return () => { stopped = true; };
+      }
+
+      function isReady(){ return !!client && connected; }
+
+      async function connectInteractive(){
+        // UI-driven (modal) now.
+        const cfg = loadCfg();
+        if(cfg?.url && cfg?.anon){
+          // try reconnect quickly
+          return await connect(cfg);
+        }
+        return false;
+      }
+
+      async function connectFromModal(url, anon){
+        const nUrl = normalizeUrl(url);
+        const nAnon = normalizeKey(anon);
+        if(!nUrl || !nAnon) return false;
+        saveCfg({ url: nUrl, anon: nAnon });
+        return await connect({ url: nUrl, anon: nAnon });
+      }
+
+      async function connect(cfg){
+        try{
+          // Prefer internal API when hosted on core-synora (avoids mobile CORS/websocket issues)
+          try{
+            await InternalCoreApi.probe();
+            await InternalCoreApi.loadInitial(25);
+            InternalCoreApi.startPolling();
+            connected = true;
+            els.runtimeLabel.textContent = 'runtime: core api (poll core_events)';
+            return true;
+          } catch {
+            // ignore and fall back to direct Supabase
+          }
+
+          if(!cfg?.url || !cfg?.anon) return false;
+
+          // If supabase-js is unavailable (CSP/network), fallback to REST polling.
+          if(!window.supabase?.createClient){
+            // Validate by REST select
+            await restSelectLatest({ url: cfg.url, anon: cfg.anon, limit: 5 });
+            startRestPolling({ url: cfg.url, anon: cfg.anon });
+            connected = true;
+            els.runtimeLabel.textContent = 'runtime: supabase REST (poll core_events)';
+            return true;
+          }
+
+          client = window.supabase.createClient(cfg.url, cfg.anon, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+            realtime: { params: { eventsPerSecond: 20 } },
+          });
+
+          // Initial load (last 25)
+          const { data, error } = await client
+            .from('core_events')
+            .select('ts,correlation_id,vertical,engine,action,severity,entity_type,entity_id,from_state,to_state,payload')
+            .order('ts', { ascending: false })
+            .limit(25);
+          if(error) throw error;
+          (data || []).reverse().forEach(row => {
+            EventStreams.push({
+              ts: row.ts,
+              correlation_id: row.correlation_id,
+              vertical: row.vertical || 'core',
+              action: row.action,
+              severity: (row.severity || 'info'),
+              path: row.engine || 'event',
+            });
+          });
+          refreshTicker();
+
+          // Realtime subscribe (INSERT)
+          if(channel) { try{ await channel.unsubscribe(); } catch {} }
+          channel = client
+            .channel('synora_core_events')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'core_events' }, (payload) => {
+              const row = payload.new || {};
+              EventStreams.push({
+                ts: row.ts,
+                correlation_id: row.correlation_id,
+                vertical: row.vertical || 'core',
+                action: row.action,
+                severity: (row.severity || 'info'),
+                path: row.engine || 'event',
+              });
+              refreshTicker();
+            });
+
+          const st = await channel.subscribe();
+          connected = (st === 'SUBSCRIBED');
+
+          els.runtimeLabel.textContent = connected
+            ? 'runtime: supabase realtime (core_events)'
+            : `runtime: supabase (subscribe=${st || 'unknown'})`;
+
+          return true;
+        } catch (e){
+          console.warn('Supabase connect failed', e);
+          els.runtimeLabel.textContent = 'runtime: simulated (supabase failed)';
+          connected = false;
+          throw e;
+        }
+      }
+
+      async function autoConnect(){
+        const cfg = loadCfg();
+        if(!cfg) return false;
+        return await connect(cfg);
+      }
+
+      async function emitTestEvent(){
+        const cfg = loadCfg();
+        if(!cfg?.url || !cfg?.anon) throw new Error('not configured');
+
+        const corr = 'CORE-' + Math.random().toString(16).slice(2,10).toUpperCase();
+        const row = {
+          correlation_id: corr,
+          vertical: 'core',
+          engine: 'event',
+          actor: 'system',
+          action: 'core.heartbeat',
+          severity: 'info',
+          entity_type: 'core',
+          entity_id: 'core',
+          payload: { note: 'test emit from synora-core-center.html' },
+        };
+
+        // Prefer supabase-js when present; fallback to REST insert.
+        if(client){
+          const { error } = await client.from('core_events').insert(row);
+          if(error) throw error;
+          return corr;
+        }
+
+        const u = cfg.url.replace(/\/+$/, '') + '/rest/v1/core_events';
+        const res = await fetch(u, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            apikey: cfg.anon,
+            authorization: `Bearer ${cfg.anon}`,
+            prefer: 'return=minimal',
+          },
+          body: JSON.stringify(row),
+        });
+        if(!res.ok){
+          const text = await res.text().catch(()=> '');
+          throw new Error(`REST insert failed: HTTP ${res.status} ${text.slice(0,180)}`);
+        }
+        return corr;
+      }
+
+      return { autoConnect, connectInteractive, connectFromModal, emitTestEvent, isReady, _loadCfg: loadCfg };
+    })();
+
+    function setDot(dotEl, kind){
+      dotEl.classList.remove('warn','crit');
+      if(kind==='warn') dotEl.classList.add('warn');
+      if(kind==='crit') dotEl.classList.add('crit');
+    }
+
+    function refreshSystem(){
+      const s = OperationalDataLayer.systemSnapshot();
+      els.healthScore.textContent = String(s.health);
+      els.eps.textContent = s.eps.toFixed(1);
+      els.orch.textContent = String(s.orchLoad);
+
+      if(s.health >= 85){ setDot(els.healthDot, 'ok'); setDot(els.sysDot,'ok'); }
+      else if(s.health >= 70){ setDot(els.healthDot, 'warn'); setDot(els.sysDot,'warn'); }
+      else { setDot(els.healthDot, 'crit'); setDot(els.sysDot,'crit'); }
+    }
+
+    function refreshSelected(){
+      const id = RuntimeStateEngine.selectedId;
+      const n = OperationalDataLayer.nodes.find(x => x.id===id);
+      if(!n) return;
+
+      els.selId.textContent = n.id;
+      els.selType.textContent = n.type;
+      els.selState.textContent = n.state;
+      els.selHealth.textContent = String(Math.round(n.health));
+      els.selEpm.textContent = String(Math.round(n.metrics.epm));
+      els.selP95.textContent = `${Math.round(n.metrics.p95)}ms`;
+      els.selQueue.textContent = String(Math.round(n.metrics.queue));
+      els.selCorr.textContent = n.metrics.corr || '—';
+
+      els.selWarnings.innerHTML = '';
+      (n.warnings||[]).slice(0,4).forEach(w => {
+        const div = document.createElement('div');
+        div.className = 'warnitem';
+        div.textContent = `${w.code}: ${w.msg}`;
+        els.selWarnings.appendChild(div);
+      });
+    }
+
+    function chipStyle(sev){
+      const s = String(sev||'info').toLowerCase();
+      if(s==='critical' || s==='high') return { bg:'rgba(255,59,104,.10)', bd:'rgba(255,59,104,.24)', tx:'rgba(255,210,222,.92)' };
+      if(s==='warn') return { bg:'rgba(255,207,74,.10)', bd:'rgba(255,207,74,.22)', tx:'rgba(255,240,200,.92)' };
+      return { bg:'rgba(64,245,255,.10)', bd:'rgba(64,245,255,.22)', tx:'rgba(208,252,255,.92)' };
+    }
+
+    function renderWfList(title, items, renderRow){
+      if(!items.length) return '';
+      const tone = (() => {
+        const t = title.toLowerCase();
+        if(t.includes('blocked') || t.includes('review')) return { bd:'rgba(255,59,104,.22)', bg:'rgba(255,59,104,.06)', tx:'rgba(255,210,222,.92)' };
+        if(t.includes('pending')) return { bd:'rgba(255,207,74,.22)', bg:'rgba(255,207,74,.06)', tx:'rgba(255,240,200,.92)' };
+        if(t.includes('retry')) return { bd:'rgba(139,92,246,.22)', bg:'rgba(139,92,246,.06)', tx:'rgba(230,222,255,.92)' };
+        if(t.includes('summary')) return { bd:'rgba(64,245,255,.18)', bg:'rgba(64,245,255,.05)', tx:'rgba(208,252,255,.92)' };
+        return { bd:'rgba(255,255,255,.10)', bg:'rgba(0,0,0,.16)', tx:'rgba(233,236,255,.86)' };
+      })();
+      return `
+        <div class="panel" style="margin-top:12px; border-color:${tone.bd}; background:${tone.bg};">
+          <h2 style="color:${tone.tx}">${title}</h2>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            ${items.map(renderRow).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function refreshWorkflowPanel(){
+      if(UIState.mode !== 'workflows') return;
+      const act = WorkflowRuntime.activeWorkflows();
+      const rq = WorkflowRuntime.retryQueue();
+      const ap = WorkflowRuntime.pendingApprovals();
+      const bl = WorkflowRuntime.blockedStates();
+
+      const summary = {
+        active: act.length,
+        blocked: bl.length,
+        pending: ap.length,
+        retries: rq.length,
+      };
+
+      const drill = UIState.drill;
+      const drillCorr = drill?.corr ? String(drill.corr) : null;
+      const drillWf = drillCorr ? WorkflowRuntime.byCorr(drillCorr) : null;
+      const drillEventsRaw = drillCorr ? EventStreams.byCorr(drillCorr).slice(0, 48) : [];
+      // present as narrative: oldest -> newest (filtered by drill view)
+      let drillEvents = drillEventsRaw.slice().reverse();
+
+      function phaseOf(e){
+        const eng = String(e?.path||e?.engine||'event').toLowerCase();
+        const act = String(e?.action||'').toLowerCase();
+        if(eng.includes('guardian') || act.includes('guardian')) return 'GUARDIAN';
+        if(eng.includes('workflow') || act.includes('workflow')) return 'WORKFLOW';
+        if(eng.includes('settlement') || act.includes('settlement') || act.includes('payout')) return 'SETTLEMENT';
+        if(eng.includes('trust') || act.includes('incident') || act.includes('anomaly')) return 'TRUST';
+        if(eng.includes('agent') || act.includes('orchestration')) return 'AI';
+        if(eng.includes('event')) return 'EVENT ENGINE';
+        return 'EVENT';
+      }
+
+      function viewAllows(e){
+        const v = UIState.drillView;
+        if(v === 'all') return true;
+        const p = phaseOf(e);
+        if(v === 'guardian') return p === 'GUARDIAN';
+        if(v === 'workflow') return p === 'WORKFLOW';
+        if(v === 'settlement') return p === 'SETTLEMENT';
+        if(v === 'trust') return p === 'TRUST';
+        if(v === 'ai') return p === 'AI';
+        if(v === 'retries') return String(e?.action||'').toLowerCase().includes('retry');
+        if(v === 'approvals') {
+          const a = String(e?.action||'').toLowerCase();
+          return a.includes('pending') && (a.includes('approval') || a.includes('accept') || a.includes('signature'));
+        }
+        return true;
+      }
+
+      drillEvents = drillEvents.filter(viewAllows).slice(-14);
+
+      function phaseTone(phase){
+        const p = String(phase||'EVENT').toUpperCase();
+        if(p.includes('GUARDIAN')) return { bd:'rgba(212,175,55,.30)', bg:'rgba(212,175,55,.10)', tx:'rgba(255,240,200,.95)' };
+        if(p.includes('WORKFLOW')) return { bd:'rgba(76,125,255,.28)', bg:'rgba(76,125,255,.10)', tx:'rgba(220,232,255,.95)' };
+        if(p.includes('SETTLEMENT')) return { bd:'rgba(44,255,157,.28)', bg:'rgba(44,255,157,.10)', tx:'rgba(210,255,235,.95)' };
+        if(p.includes('TRUST') || p.includes('INCIDENT')) return { bd:'rgba(255,59,104,.30)', bg:'rgba(255,59,104,.10)', tx:'rgba(255,210,222,.95)' };
+        if(p==='AI') return { bd:'rgba(64,245,255,.26)', bg:'rgba(64,245,255,.08)', tx:'rgba(208,252,255,.95)' };
+        if(p.includes('EVENT ENGINE')) return { bd:'rgba(139,92,246,.28)', bg:'rgba(139,92,246,.10)', tx:'rgba(230,222,255,.95)' };
+        return { bd:'rgba(255,255,255,.18)', bg:'rgba(255,255,255,.06)', tx:'rgba(233,236,255,.92)' };
+      }
+
+      function summarizeDrill(evts){
+        const engines = new Set(evts.map(e => String(e.path||e.engine||'event').toLowerCase()).filter(Boolean));
+        const sevRank = (s)=> s==='critical'?4:s==='high'?3:s==='warn'?2:1;
+        const maxSev = evts.reduce((acc,e)=>{
+          const s = String(e.severity||'info').toLowerCase();
+          return sevRank(s) > sevRank(acc) ? s : acc;
+        }, 'info');
+        const retries = evts.filter(e=>String(e.action||'').toLowerCase().includes('retry')).length;
+        const approvals = evts.filter(e=>{
+          const a = String(e.action||'').toLowerCase();
+          return a.includes('pending') && (a.includes('approval') || a.includes('accept') || a.includes('signature'));
+        }).length;
+        return { engines:Array.from(engines), maxSev, retries, approvals };
+      }
+
+      const drillSum = drillCorr ? summarizeDrill(drillEventsRaw) : null;
+      const currentPhase = drillCorr
+        ? (drillEvents.length ? phaseOf(drillEvents[drillEvents.length-1]) : phaseOf(drillEventsRaw[0]||{}))
+        : null;
+      const phaseT = currentPhase ? phaseTone(currentPhase) : null;
+
+      // Extract required_actions (best effort) from any event in this corr
+      const requiredActions = (() => {
+        const raw = drillEventsRaw
+          .map(e => e?.required_actions ?? e?.payload?.required_actions ?? null)
+          .filter(Boolean)[0];
+        if(Array.isArray(raw)) return raw.map(String);
+        if(typeof raw === 'string') return [raw];
+        if(raw && typeof raw === 'object') {
+          // accept { items: [...] }
+          const items = raw.items;
+          if(Array.isArray(items)) return items.map(String);
+        }
+        return [];
+      })();
+
+      function decisionCockpit(wf, sum, phase){
+        const st = String(wf?.state || '').toLowerCase();
+        const sev = String(sum?.maxSev || wf?.severity || 'info').toLowerCase();
+        const retries = Number(sum?.retries || 0);
+        const approvals = Number(sum?.approvals || 0);
+        let happening = 'Workflow em execução.';
+        let action = 'Acompanhar a evolução do pipeline.';
+
+        if(st.includes('blocked') || sev==='critical'){
+          happening = 'Blocked state detectado no pipeline.';
+          action = 'Abrir causa raiz: Guardian/Trust → revisar required_actions e reprocessar.';
+        } else if(st.includes('guardian_review') || phase==='GUARDIAN'){
+          happening = 'Guardian review / policy gate ativo.';
+          action = 'Revisar motivo do review, ajustar payload/policy e reenviar.';
+        } else if(st.includes('pending_signature') || approvals>0){
+          happening = 'Aguardando aprovação/assinatura.';
+          action = 'Notificar signatário e configurar expiração/escalonamento.';
+        } else if(st.includes('retry') || retries>0){
+          happening = 'Retry/backoff ativo no workflow.';
+          action = 'Aguardar backoff ou forçar retry com verificação de causa (latência/timeout).';
+        } else if(st.includes('settlement') || phase==='SETTLEMENT'){
+          happening = 'Settlement em processamento/reconciliação.';
+          action = 'Verificar reconciliação do provider, fila, e confirmar proof/ref.';
+        }
+
+        return { happening, action };
+      }
+      const drillHtml = drillCorr ? `
+        <div class="panel" id="drillBlock" style="border-color:rgba(64,245,255,.18); background:rgba(64,245,255,.04);">
+          <h2>DRILL</h2>
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-top:2px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="font-family:var(--mono); font-size:12px; color:rgba(233,236,255,.92)">corr <span style="font-size:14px; letter-spacing:.08em;">${shortCorr(drillCorr)}</span></div>
+              <div style="font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70)">${(drillWf?.vertical||'—').toUpperCase()} • state ${drillWf?.state||'—'}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${phaseT ? `<span style="padding:6px 10px; border-radius:999px; border:1px solid ${phaseT.bd}; background:${phaseT.bg}; color:${phaseT.tx}; font-size:10px; letter-spacing:.14em; font-family:var(--mono);">${String(currentPhase||'EVENT').toUpperCase()}</span>` : ''}
+              <span style="padding:6px 10px; border-radius:999px; border:1px solid ${chipStyle(drillSum?.maxSev||'info').bd}; background:${chipStyle(drillSum?.maxSev||'info').bg}; color:${chipStyle(drillSum?.maxSev||'info').tx}; font-size:10px; letter-spacing:.14em; font-family:var(--mono);">${String(drillSum?.maxSev||'info').toUpperCase()}</span>
+            </div>
+          </div>
+
+          ${(() => {
+            const dec = decisionCockpit(drillWf, drillSum, currentPhase);
+            return `
+              <div style="margin-top:12px; border-radius:18px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); padding:12px;">
+                <div style="font-family:var(--mono); font-size:10px; letter-spacing:.16em; color:rgba(233,236,255,.62)">WF DECISION COCKPIT</div>
+                <div style="margin-top:8px; font-size:13px; color:rgba(233,236,255,.92); line-height:1.35">
+                  <div style="opacity:.88">What is happening now</div>
+                  <div style="margin-top:4px; font-weight:700; letter-spacing:.1px">${dec.happening}</div>
+                </div>
+                <div style="margin-top:10px; font-size:13px; color:rgba(233,236,255,.92); line-height:1.35">
+                  <div style="opacity:.88">Suggested next action</div>
+                  <div style="margin-top:4px; font-weight:700; letter-spacing:.1px">${dec.action}</div>
+                </div>
+                <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">
+                  <button class="btn2" data-drill-view="guardian">Open Guardian decision</button>
+                  <button class="btn2" data-drill-view="approvals">View required_actions</button>
+                  <button class="btn2" data-drill-view="trust">Open incident</button>
+                  <button class="btn2" data-drill-view="workflow">View workflow trace</button>
+                  <button class="btn2" data-drill-view="settlement">View settlement timeline</button>
+                  <button class="btn2" data-drill-view="all">Inspect correlation flow</button>
+                  <button class="btn2" data-drill-view="retries">View retries</button>
+                  <button class="btn2" data-drill-view="ai">Open orchestration path</button>
+                </div>
+              </div>
+            `;
+          })()}
+
+          <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; font-size:12px; color:rgba(233,236,255,.78)">
+            <div>engines touched</div><div style="font-family:var(--mono); color:rgba(233,236,255,.92)">${(drillSum?.engines||[]).slice(0,6).map(x=>x.toUpperCase()).join(', ') || '—'}</div>
+            <div>retries</div><div style="font-family:var(--mono); color:rgba(233,236,255,.92)">${drillSum?.retries ?? 0}</div>
+            <div>pending approvals</div><div style="font-family:var(--mono); color:rgba(233,236,255,.92)">${drillSum?.approvals ?? 0}</div>
+            <div>blocked</div><div style="font-family:var(--mono); color:rgba(233,236,255,.92)">${drillWf?.blocked ? 'YES' : 'NO'}</div>
+          </div>
+
+          ${requiredActions.length ? `
+            <div style="margin-top:12px; border-radius:18px; border:1px solid rgba(212,175,55,.22); background:rgba(212,175,55,.06); padding:12px;">
+              <div style="font-family:var(--mono); font-size:10px; letter-spacing:.16em; color:rgba(255,240,200,.85)">REQUIRED_ACTIONS</div>
+              <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px; font-size:12px; color:rgba(233,236,255,.86)">
+                ${requiredActions.slice(0,6).map(x => `<div>• ${String(x).slice(0,120)}</div>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+          <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+            ${drillEvents.length ? drillEvents.map((e) => {
+              const c = chipStyle(e.severity);
+              const ts = e.ts ? new Date(String(e.ts)).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
+              const eng = String(e.path||e.engine||'event').toUpperCase();
+              const act = String(e.action||'');
+              const group = phaseOf({ path: String(e.path||e.engine||''), action: act });
+              const gt = phaseTone(group);
+              return `
+                <div style="border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.16); padding:8px 10px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="padding:3px 7px; border-radius:999px; border:1px solid ${c.bd}; background:${c.bg}; color:${c.tx}; font-size:10px; font-family:var(--mono);">${String(e.severity||'info').toUpperCase()}</span>
+                      <span style="padding:4px 8px; border-radius:999px; border:1px solid ${gt.bd}; background:${gt.bg}; color:${gt.tx}; font-family:var(--mono); font-size:10px; letter-spacing:.12em;">${group}</span>
+                      <span style="opacity:.45">/</span>
+                      <span style="font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.78)">${eng}</span>
+                      <span style="opacity:.5">·</span>
+                      <span style="font-size:12px; color:rgba(233,236,255,.86)">${act.slice(0, 60)}</span>
+                    </div>
+                    <div style="font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.60)">${ts}</div>
+                  </div>
+                </div>
+              `;
+            }).join('') : `<div style="font-size:12px; color:rgba(233,236,255,.70)">(sem eventos carregados ainda para este corr)</div>`}
+          </div>
+          <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+            <button class="btn2" id="drillClear2">clear drill</button>
+          </div>
+        </div>
+      ` : '';
+
+      const html =
+        `
+          <div class="panel">
+            <h2>RUNTIME SUMMARY</h2>
+            <div class="kv">
+              <div>active</div><div class="v">${summary.active}</div>
+              <div>blocked/friction</div><div class="v">${summary.blocked}</div>
+              <div>pending approvals</div><div class="v">${summary.pending}</div>
+              <div>retry queue</div><div class="v">${summary.retries}</div>
+            </div>
+          </div>
+        `
+        + drillHtml
+        + renderWfList('BLOCKED / REVIEW', bl, (w) => {
+          const c = chipStyle(w.severity==='high'||w.severity==='critical'?'high':'warn');
+          return `
+            <div data-drill-corr="${String(w.corr||'')}" style="border-radius:16px; border:1px solid ${c.bd}; background:${c.bg}; padding:10px; cursor:pointer;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div style="font-family:var(--mono); font-size:12px; color:${c.tx};">${String(w.vertical).toUpperCase()} • ${w.state}</div>
+                <div style="font-family:var(--mono); font-size:11px; color:${c.tx};">age ${w.age}</div>
+              </div>
+              <div style="margin-top:6px; font-size:12px; color:rgba(233,236,255,.78);">corr ${shortCorr(w.corr)} • upd ${w.updatedAgo}</div>
+            </div>
+          `;
+        })
+        + renderWfList('PENDING APPROVALS', ap, (a) => {
+          return `
+            <div data-drill-corr="${String(a.corr||'')}" style="border-radius:16px; border:1px solid rgba(255,207,74,.22); background:rgba(255,207,74,.06); padding:10px; cursor:pointer;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div style="font-family:var(--mono); font-size:12px; color:rgba(255,240,200,.92);">${String(a.vertical).toUpperCase()} • ${a.kind}</div>
+                <div style="font-family:var(--mono); font-size:11px; color:rgba(255,240,200,.92);">expires ${a.expiresIn}</div>
+              </div>
+              <div style="margin-top:6px; font-size:12px; color:rgba(233,236,255,.78);">awaiting: <span style="font-family:var(--mono);">${a.awaiting}</span> • corr ${shortCorr(a.corr)}</div>
+            </div>
+          `;
+        })
+        + renderWfList('RETRY QUEUE', rq, (r) => {
+          return `
+            <div data-drill-corr="${String(r.corr||'')}" style="border-radius:16px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.16); padding:10px; cursor:pointer;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div style="font-family:var(--mono); font-size:12px; color:rgba(233,236,255,.90);">${String(r.vertical).toUpperCase()} • ${r.kind}</div>
+                <div style="font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.62);">attempt ${r.attempt} • backoff ${r.backoff_s}s</div>
+              </div>
+              <div style="margin-top:6px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70);">next: ${r.eta} • corr ${shortCorr(r.corr)}</div>
+            </div>
+          `;
+        })
+        + renderWfList('ACTIVE WORKFLOWS (TOP)', act.slice(0,5), (w) => {
+          const c = chipStyle(w.severity);
+          const vid = String(w.vertical||'').toUpperCase();
+          return `
+            <div data-drill-corr="${String(w.corr||'')}" style="border-radius:16px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); padding:10px; cursor:pointer;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span style="padding:4px 8px; border-radius:999px; border:1px solid ${c.bd}; background:${c.bg}; color:${c.tx}; font-size:10px; font-family:var(--mono);">${String(w.severity).toUpperCase()}</span>
+                  <div style="font-size:12px; color:rgba(233,236,255,.92); font-family:var(--mono);">${vid} / ${String(w.id).slice(0,12)}</div>
+                </div>
+                <div style="font-size:11px; color:rgba(233,236,255,.62); font-family:var(--mono);">age ${w.age}</div>
+              </div>
+              <div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div style="font-size:12px; color:rgba(233,236,255,.78);">state: <span style="font-family:var(--mono);">${w.state}</span></div>
+                <div style="font-size:11px; color:rgba(233,236,255,.62); font-family:var(--mono);">upd ${w.updatedAgo} • corr ${shortCorr(w.corr)}</div>
+              </div>
+            </div>
+          `;
+        });
+
+      // Replace context side panels content in WF mode
+      const host = document.querySelector('aside.context');
+      if(host){
+        host.innerHTML = `
+          <div class="panel">
+            <h2>WORKFLOW RUNTIME</h2>
+            <div style="font-size:12px; color:var(--muted); line-height:1.45">
+              Modo WF mostra pipelines vivos: estados transitórios, filas, retries, aprovações e bloqueios.\
+              <div style="margin-top:8px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.82)">
+                focus: workflows → guardian → settlement → events
+              </div>
+            </div>
+          </div>
+          ${html}
+        `;
+
+        const btn = document.getElementById('drillClear2');
+        if(btn) btn.addEventListener('click', () => UIState.clearDrill());
+
+        // Actionable Cockpit V1: inspect/navigation only
+        host.querySelectorAll('[data-drill-view]').forEach((b) => {
+          b.addEventListener('click', () => {
+            const v = b.getAttribute('data-drill-view') || 'all';
+            // map "required_actions" button to a meaningful view
+            if(v === 'approvals') UIState.setDrillView('approvals');
+            else UIState.setDrillView(v);
+            // also switch modes for contextual focus
+            if(v === 'guardian') UIState.setMode('guardian');
+            if(v === 'workflow') UIState.setMode('workflows');
+            if(v === 'settlement') UIState.setMode('settlements');
+            if(v === 'trust') UIState.setMode('incidents');
+            if(v === 'ai') UIState.setMode('agents');
+          });
+        });
+      }
+    }
+
+    function modeAllows(evt){
+      const m = UIState.mode;
+      const engine = String(evt?.path || evt?.engine || '').toLowerCase();
+      const action = String(evt?.action || '').toLowerCase();
+      if(m === 'observability') return true;
+      if(m === 'workflows') return engine.includes('workflow') || action.includes('workflow');
+      if(m === 'settlements') return engine.includes('settlement') || action.includes('settlement') || action.includes('payout');
+      if(m === 'guardian') return engine.includes('guardian') || action.includes('guardian');
+      if(m === 'agents') return engine.includes('agent') || action.includes('orchestration');
+      if(m === 'incidents') return engine.includes('trust') || action.includes('incident') || action.includes('anomaly');
+      return true;
+    }
+
+    function sevChip(sev){
+      const s = String(sev||'info').toLowerCase();
+      const map = {
+        info: { bg:'rgba(64,245,255,.10)', bd:'rgba(64,245,255,.22)', tx:'rgba(208,252,255,.92)' },
+        warn: { bg:'rgba(255,207,74,.10)', bd:'rgba(255,207,74,.22)', tx:'rgba(255,240,200,.92)' },
+        high: { bg:'rgba(255,59,104,.10)', bd:'rgba(255,59,104,.24)', tx:'rgba(255,210,222,.92)' },
+        critical: { bg:'rgba(255,59,104,.14)', bd:'rgba(255,59,104,.34)', tx:'rgba(255,210,222,.96)' },
+      };
+      return map[s] || map.info;
+    }
+
+    function shortCorr(c){
+      const v = String(c||'');
+      if(!v) return '—';
+      return v.length <= 10 ? v : v.slice(0,4) + '…' + v.slice(-4);
+    }
+
+    function refreshDrillUi(){
+      const d = UIState.drill;
+      if(d?.corr){
+        els.drillClear.style.display = '';
+        els.drillClear.textContent = `drill: ${shortCorr(d.corr)} ✕`;
+      } else {
+        els.drillClear.style.display = 'none';
+      }
+    }
+
+    function refreshTicker(){
+      const items = EventStreams.items().map(x=>x.raw).filter(modeAllows);
+      if(!items.length){
+        els.ticker.innerHTML = `<span style="opacity:.65">(sem eventos para modo: ${UIState.mode})</span>`;
+        return;
+      }
+
+      const top = items.slice(0,5);
+      els.ticker.innerHTML = top.map((e) => {
+        const chip = sevChip(e.severity);
+        const engine = String(e.path || e.engine || 'event').toUpperCase();
+        const vert = String(e.vertical || 'core').toUpperCase();
+        const act = String(e.action || '').slice(0,48);
+        const corr = shortCorr(e.correlation_id);
+        return `
+          <span data-corr="${String(e.correlation_id||'')}" style="display:inline-flex; align-items:center; gap:8px; margin-right:14px; cursor:pointer;">
+            <span style="padding:4px 8px; border-radius:999px; border:1px solid ${chip.bd}; background:${chip.bg}; color:${chip.tx}; font-size:10px; letter-spacing:.06em;">${String(e.severity||'info').toUpperCase()}</span>
+            <span style="opacity:.90">${engine}</span>
+            <span style="opacity:.62">→</span>
+            <span style="opacity:.92">${vert}</span>
+            <span style="opacity:.62">·</span>
+            <span style="opacity:.92">${act}</span>
+            <span style="opacity:.62">·</span>
+            <span style="opacity:.85">corr:${corr}</span>
+          </span>
+        `;
+      }).join('');
+
+      refreshDrillUi();
+    }
+
+    // Mode buttons
+    document.querySelectorAll('.modebtn').forEach(btn => {
+      if(btn.id === 'connectBtn' || btn.id === 'emitBtn') return;
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.modebtn').forEach(b => {
+          if(b.id === 'connectBtn' || b.id === 'emitBtn') return;
+          b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        const m = btn.getAttribute('data-mode') || 'observability';
+        UIState.setMode(m);
+        refreshTicker();
+      });
+    });
+
+    UIState.onMode(() => {
+      refreshTicker();
+      // swap context panels
+      if(UIState.mode === 'workflows') refreshWorkflowPanel();
+      else { ContextPanels.restore(); refreshSelected(); }
+    });
+
+    UIState.onDrill(() => {
+      refreshTicker();
+      // Route context to WF for drill investigation (V1)
+      if(UIState.drill?.corr && UIState.mode !== 'workflows') UIState.setMode('workflows');
+      if(UIState.mode === 'workflows') refreshWorkflowPanel();
+      refreshDrillUi();
+      applyDrillBodyClass();
+
+      // Auto-focus DRILL block with cinematic attention routing
+      setTimeout(() => {
+        const host = document.querySelector('aside.context');
+        const block = host?.querySelector?.('#drillBlock');
+        if(block){
+          try{
+            block.classList.remove('drill-focus');
+            // scroll first, then pulse
+            block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => block.classList.add('drill-focus'), 140);
+            setTimeout(() => block.classList.remove('drill-focus'), 3200);
+          } catch {}
+        }
+      }, 120);
+    });
+
+    // Drill interactions
+    els.ticker.addEventListener('click', (e) => {
+      const el = e.target?.closest?.('[data-corr]');
+      const corr = el?.getAttribute?.('data-corr');
+      if(corr) UIState.setDrill({ corr, ts: Date.now() });
+    });
+
+    els.drillClear.addEventListener('click', () => UIState.clearDrill());
+
+    // Context panel delegation (WF mode)
+    document.addEventListener('click', (e) => {
+      const host = document.querySelector('aside.context');
+      if(!host || !host.contains(e.target)) return;
+      const row = e.target?.closest?.('[data-drill-corr]');
+      const corr = row?.getAttribute?.('data-drill-corr');
+      if(corr) UIState.setDrill({ corr, ts: Date.now() });
+    });
+
+    // Supabase connect / emit (modal)
+    function openModal(){
+      const cfg = SupaEventEngine._loadCfg?.() || null;
+      if(cfg?.url) els.supUrl.value = cfg.url;
+      if(cfg?.anon) els.supAnon.value = cfg.anon;
+      els.connectModal.classList.add('open');
+      els.connectModal.setAttribute('aria-hidden','false');
+      setTimeout(()=>els.supUrl.focus(), 50);
+    }
+    function closeModal(){
+      els.connectModal.classList.remove('open');
+      els.connectModal.setAttribute('aria-hidden','true');
+    }
+
+    els.connectBtn.addEventListener('click', async () => {
+      openModal();
+    });
+    els.connectCancel.addEventListener('click', () => closeModal());
+    els.connectModal.addEventListener('click', (e) => { if(e.target === els.connectModal) closeModal(); });
+    els.connectSave.addEventListener('click', async () => {
+      $('connectMsg').textContent = 'status: connecting…';
+      try{
+        const ok = await SupaEventEngine.connectFromModal(String(els.supUrl.value||'').trim(), String(els.supAnon.value||'').trim());
+        if(ok){
+          $('connectMsg').textContent = 'status: connected';
+          closeModal();
+        } else {
+          $('connectMsg').textContent = 'status: failed';
+          alert('Falha ao conectar. Verifique URL e publishable key e se a tabela core_events existe.');
+        }
+      } catch (e){
+        $('connectMsg').textContent = 'status: failed (see error)';
+        alert('Falha ao conectar: ' + (e?.message || String(e)));
+      }
+    });
+    els.emitBtn.addEventListener('click', async () => {
+      try{
+        const corr = await SupaEventEngine.emitTestEvent();
+        EventStreams.push({ ts: new Date().toISOString(), correlation_id: corr, vertical:'core', action:'core.heartbeat (inserted)', severity:'info', path:'event' });
+        refreshTicker();
+      } catch (e){
+        alert('Emit falhou: conecte no Supabase e garanta RLS/policies (core_events).\n\n' + (e?.message || String(e)));
+      }
+    });
+
+    els.pauseBtn.addEventListener('click', () => {
+      EventStreams.paused = !EventStreams.paused;
+      els.pauseBtn.textContent = EventStreams.paused ? 'resume' : 'pause';
+    });
+
+    els.clearBtn.addEventListener('click', () => {
+      EventStreams.clear();
+      refreshTicker();
+    });
+
+    // Wire event bus -> ticker
+    OperationalDataLayer.onEvent((evt) => {
+      EventStreams.push(evt);
+      EventReactor.ingest(evt);
+      WorkflowRuntime.ingest(evt);
+      refreshTicker();
+      refreshWorkflowPanel();
+    });
+
+    // In WF mode, keep right panel fresh even if no new event arrives
+    setInterval(() => {
+      if(UIState.mode === 'workflows') refreshWorkflowPanel();
+    }, 2000);
+
+    // Record mode toggle (stable screen capture)
+    function applyRecordMode(v){
+      UIState.setRecordMode(v);
+      document.body.classList.toggle('record-mode', !!v);
+      if(els.recordBtn){
+        els.recordBtn.classList.toggle('active', !!v);
+        els.recordBtn.classList.toggle('rec-on', !!v);
+        els.recordBtn.classList.toggle('rec-off', !v);
+        const k = els.recordBtn.querySelector('.k');
+        if(k) k.textContent = v ? 'REC ON' : 'REC OFF';
+      }
+    }
+    if(els.recordBtn){
+      els.recordBtn.addEventListener('click', () => applyRecordMode(!UIState.recordMode));
+    }
+    // Auto-enable record mode if URL has ?record=1
+    try{
+      const u = new URL(location.href);
+      if(u.searchParams.get('record') === '1') applyRecordMode(true);
+    } catch {}
+
+    RuntimeStateEngine.onSelect(() => refreshSelected());
+
+    // Main loop: operational ticks
+    setInterval(() => {
+      OperationalDataLayer.tick();
+      refreshSystem();
+      refreshSelected();
+    }, 900);
+
+    // Boot
+    VisualOrbitEngine.mount();
+    refreshSystem();
+    refreshSelected();
+    refreshTicker();
+    refreshAuthUi();
+    ContextPanels.snapshot();
+    refreshDrillUi();
+    applyDrillBodyClass();
+
+    // Attempt auto-connect
+    // 1) Prefer same-origin Core API when available
+    (async () => {
+      try{
+        await InternalCoreApi.probe();
+        await InternalCoreApi.loadInitial(25);
+        InternalCoreApi.startPolling();
+        els.runtimeLabel.textContent = 'runtime: core api (poll core_events)';
+      } catch {
+        // 2) Fallback to direct Supabase if configured
+        SupaEventEngine.autoConnect();
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>

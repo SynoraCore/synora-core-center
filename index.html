@@ -1902,7 +1902,7 @@
         // without turning into a generic dashboard.
         const isSpine = (l.from==='core' || l.to==='core' || l.from==='event' || l.to==='event');
         const spineGold = isSpine && (UIState.mode==='observability' || (fset && isFocus));
-        const kindCol = spineGold ? 'rgba(212,175,55,.78)' : kindCol0;
+        const kindCol = spineGold ? 'rgba(212,175,55,.56)' : kindCol0;
 
         // de-emphasize long, secondary links (spaghetti control)
         const dist = Math.hypot(b.x-a.x, b.y-a.y);
@@ -1917,8 +1917,7 @@
         const fragDash = frag > 0.10;
 
         ctx.save();
-        ctx.globalAlpha = baseAlpha * longFade * sideFade * P.linkAlpha * (spineGold ? 1.85 : 1);
-        ctx.globalAlpha = Math.min(ctx.globalAlpha, spineGold ? 0.55 : 0.42);
+        ctx.globalAlpha = baseAlpha * longFade * sideFade * P.linkAlpha;
         ctx.strokeStyle = kindCol;
         ctx.lineWidth = phys.width;
 
@@ -1927,7 +1926,7 @@
         const spineHot = spineGold ? Math.max(heat, (fset && isFocus) ? 0.45 : 0) : 0;
         if(spineGold && !UIState.recordMode){
           ctx.shadowColor = 'rgba(212,175,55,.85)';
-          ctx.shadowBlur = 28 + spineHot*34;
+          ctx.shadowBlur = 18 + spineHot*26;
         }
         if(fragDash){
           // Elegant fragmentation (DEGRADED/CRITICAL): broken trails, not “dashed lines”.
@@ -1951,8 +1950,8 @@
         if(spineGold && !UIState.recordMode){
           ctx.save();
           ctx.globalAlpha *= (0.95 + spineHot*0.55);
-          ctx.strokeStyle = 'rgba(212,175,55,.74)';
-          ctx.lineWidth = Math.max(phys.width+2.4, 3.2);
+          ctx.strokeStyle = 'rgba(212,175,55,.62)';
+          ctx.lineWidth = Math.max(phys.width+1.6, 2.6);
           ctx.beginPath();
           ctx.moveTo(a.x,a.y);
           ctx.quadraticCurveTo(cx,cy,b.x,b.y);

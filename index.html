@@ -1921,11 +1921,12 @@
         ctx.strokeStyle = kindCol;
         ctx.lineWidth = phys.width;
 
-        // Luminous spine (gold) — subtle, cinematic. Keep cheap: only on spine links.
+        // Luminous spine (gold) — make it *perceptible* but still cinematic.
+        // Keep cheap: only on spine links.
+        const spineHot = spineGold ? Math.max(heat, (fset && isFocus) ? 0.45 : 0) : 0;
         if(spineGold && !UIState.recordMode){
-          const hot = Math.max(heat, (fset && isFocus) ? 0.35 : 0);
-          ctx.shadowColor = 'rgba(212,175,55,.65)';
-          ctx.shadowBlur = 10 + hot*18;
+          ctx.shadowColor = 'rgba(212,175,55,.85)';
+          ctx.shadowBlur = 18 + spineHot*26;
         }
         if(fragDash){
           // Elegant fragmentation (DEGRADED/CRITICAL): broken trails, not “dashed lines”.
@@ -1934,8 +1935,7 @@
           ctx.setLineDash([d0, g0]);
           ctx.lineDashOffset = -(performance.now()/1000) * (6 + frag*14);
         }
-        ctx.beginPath();
-        // subtle curve
+        // curve (shared by underlay + main stroke + particles)
         const mx = (a.x+b.x)/2;
         const my = (a.y+b.y)/2;
         const dx = b.x-a.x;
@@ -1945,10 +1945,22 @@
         const sign = (l.from < l.to) ? 1 : -1;
         const cx = mx - dy*k*sign;
         const cy = my + dx*k*sign;
-        ctx.moveTo(a.x,a.y);
-        ctx.quadraticCurveTo(cx,cy,b.x,b.y);
-        ctx.stroke();
-        ctx.restore();
+
+        // Underlay pass for spineGold: soft wide glow stroke beneath the main line.
+        if(spineGold && !UIState.recordMode){
+          ctx.save();
+          ctx.globalAlpha *= (0.95 + spineHot*0.55);
+          ctx.strokeStyle = 'rgba(212,175,55,.62)';
+          ctx.lineWidth = Math.max(phys.width+1.6, 2.6);
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y);
+          ctx.quadraticCurveTo(cx,cy,b.x,b.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Main stroke
+        ctx.beginPath();
 
         // particles (event streams)
         if(fset && !isFocus) return;

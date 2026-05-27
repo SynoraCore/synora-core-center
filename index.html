@@ -510,6 +510,53 @@
         </div>
       </div>
 
+      <div class="panel" id="pressurePanels">
+        <h2>RUNTIME PRESSURE</h2>
+        <div style="display:flex; flex-direction:column; gap:10px; font-family:var(--mono);">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="font-size:11px; color:rgba(233,236,255,.72)">system</div>
+            <div class="v" id="sysOpLabel" style="font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.18); color:rgba(233,236,255,.86)">—</div>
+          </div>
+
+          <div style="padding:10px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.14)">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+              <div style="font-size:11px; letter-spacing:.5px; color:rgba(255,240,200,.92)">GUARDIAN</div>
+              <div class="v" id="gOpLabel" style="font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(212,175,55,.18); background:rgba(212,175,55,.06); color:rgba(255,240,200,.92)">—</div>
+            </div>
+            <div class="kv" style="grid-template-columns: 120px 1fr;">
+              <div>pressure</div><div class="v" id="gPressure">—</div>
+              <div>reviewQ</div><div class="v" id="gReviewQ">—</div>
+              <div>policyMs</div><div class="v" id="gPolicyMs">—</div>
+              <div>state</div><div class="v" id="gState">—</div>
+            </div>
+          </div>
+
+          <div style="padding:10px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.14)">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+              <div style="font-size:11px; letter-spacing:.5px; color:rgba(210,255,235,.92)">SETTLEMENT</div>
+              <div class="v" id="sOpLabel" style="font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(44,255,157,.18); background:rgba(44,255,157,.06); color:rgba(210,255,235,.92)">—</div>
+            </div>
+            <div class="kv" style="grid-template-columns: 120px 1fr;">
+              <div>pending</div><div class="v" id="sPending">—</div>
+              <div>throughput</div><div class="v" id="sThroughput">—</div>
+              <div>delayS</div><div class="v" id="sDelayS">—</div>
+            </div>
+          </div>
+
+          <div style="padding:10px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.14)">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+              <div style="font-size:11px; letter-spacing:.5px; color:rgba(220,232,255,.92)">WORKFLOW</div>
+              <div class="v" id="wOpLabel" style="font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(76,125,255,.18); background:rgba(76,125,255,.06); color:rgba(220,232,255,.92)">—</div>
+            </div>
+            <div class="kv" style="grid-template-columns: 120px 1fr;">
+              <div>retries</div><div class="v" id="wRetries">—</div>
+              <div>lagMs</div><div class="v" id="wLagMs">—</div>
+              <div>blocked</div><div class="v" id="wBlocked">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel">
         <h2>NOTES</h2>
         <div style="font-size:12px; color:var(--muted); line-height:1.35">
@@ -1989,6 +2036,22 @@
       authLogin: $('authLogin'),
       authReload: $('authReload'),
       authMsg: $('authMsg'),
+
+      // Pressure panels
+      sysOpLabel: $('sysOpLabel'),
+      gPressure: $('gPressure'),
+      gReviewQ: $('gReviewQ'),
+      gPolicyMs: $('gPolicyMs'),
+      gState: $('gState'),
+      gOpLabel: $('gOpLabel'),
+      sPending: $('sPending'),
+      sThroughput: $('sThroughput'),
+      sDelayS: $('sDelayS'),
+      sOpLabel: $('sOpLabel'),
+      wRetries: $('wRetries'),
+      wLagMs: $('wLagMs'),
+      wBlocked: $('wBlocked'),
+      wOpLabel: $('wOpLabel'),
     };
 
     const ContextPanels = (() => {
@@ -2418,6 +2481,97 @@
       if(s.health >= 85){ setDot(els.healthDot, 'ok'); setDot(els.sysDot,'ok'); }
       else if(s.health >= 70){ setDot(els.healthDot, 'warn'); setDot(els.sysDot,'warn'); }
       else { setDot(els.healthDot, 'crit'); setDot(els.sysDot,'crit'); }
+    }
+
+    // Runtime pressure panels (Guardian / Settlement / Workflow)
+    let recoveringUntil = 0;
+    let lastMaxPressure = 0;
+
+    function setOpLabel(el, text, tone){
+      if(!el) return;
+      el.textContent = text || '—';
+      if(!tone) return;
+      el.style.borderColor = tone.bd;
+      el.style.background = tone.bg;
+      el.style.color = tone.tx;
+    }
+
+    function pressureTone(p, kind){
+      const base = (kind==='guardian')
+        ? { ok:['rgba(212,175,55,.18)','rgba(212,175,55,.06)','rgba(255,240,200,.92)'] }
+        : (kind==='settlement')
+          ? { ok:['rgba(44,255,157,.18)','rgba(44,255,157,.06)','rgba(210,255,235,.92)'] }
+          : { ok:['rgba(76,125,255,.18)','rgba(76,125,255,.06)','rgba(220,232,255,.92)'] };
+      if(p >= 0.82) return { bd:'rgba(255,59,104,.26)', bg:'rgba(255,59,104,.08)', tx:'rgba(255,210,222,.92)' };
+      if(p >= 0.62) return { bd:'rgba(255,207,74,.24)', bg:'rgba(255,207,74,.08)', tx:'rgba(255,240,200,.92)' };
+      if(p >= 0.38) return { bd:'rgba(255,255,255,.16)', bg:'rgba(255,255,255,.06)', tx:'rgba(233,236,255,.86)' };
+      return { bd: base.ok[0], bg: base.ok[1], tx: base.ok[2] };
+    }
+
+    function refreshPressurePanels(){
+      const g = OperationalDataLayer.nodes.find(n=>n.id==='guardian');
+      const s = OperationalDataLayer.nodes.find(n=>n.id==='settlement');
+      const w = OperationalDataLayer.nodes.find(n=>n.id==='workflow');
+      if(!g || !s || !w) return;
+
+      const gp = Number(g.stress?.p||0);
+      const sp = Number(s.stress?.p||0);
+      const wp = Number(w.stress?.p||0);
+      const maxP = Math.max(gp, sp, wp);
+
+      // recovering heuristic: if we were high recently and now dropping
+      if(maxP >= 0.70) lastMaxPressure = Math.max(lastMaxPressure, maxP);
+      if(lastMaxPressure >= 0.70 && maxP <= 0.45) recoveringUntil = Date.now() + 22_000;
+      if(maxP <= 0.35 && Date.now() > recoveringUntil) lastMaxPressure = Math.max(0, lastMaxPressure - 0.06);
+
+      // System label
+      const sysLabel = (Date.now() < recoveringUntil)
+        ? 'SYSTEM RECOVERING'
+        : (maxP >= 0.82)
+          ? 'SYSTEM SATURATED'
+          : (maxP >= 0.62)
+            ? 'SYSTEM DEGRADED'
+            : (maxP >= 0.38)
+              ? 'SYSTEM TENSE'
+              : 'NOMINAL';
+      setOpLabel(els.sysOpLabel, sysLabel, pressureTone(maxP, 'system'));
+
+      // Guardian
+      els.gPressure.textContent = `${Math.round(gp*100)}%`;
+      els.gReviewQ.textContent = String(Math.round(g.metrics.reviewQ || 0));
+      els.gPolicyMs.textContent = `${Math.round(g.metrics.policyMs || 0)}ms`;
+      els.gState.textContent = String(g.stress?.state || '—');
+
+      const gLabel = (gp >= 0.62 || (g.metrics.reviewQ||0) > 80)
+        ? 'QUEUE GROWING'
+        : (gp >= 0.38)
+          ? 'POLICY CHECKS SLOW'
+          : 'STABLE';
+      setOpLabel(els.gOpLabel, gLabel, pressureTone(gp, 'guardian'));
+
+      // Settlement
+      els.sPending.textContent = String(Math.round(s.metrics.pending || 0));
+      els.sThroughput.textContent = String(Math.round(s.metrics.throughput || 0));
+      els.sDelayS.textContent = `${Math.round(s.metrics.delayS || 0)}s`;
+
+      const sLabel = (sp >= 0.62 || (s.metrics.delayS||0) > 25)
+        ? 'THROUGHPUT DELAY'
+        : (sp >= 0.38)
+          ? 'CONFIRM PENDING'
+          : 'CLEAR';
+      setOpLabel(els.sOpLabel, sLabel, pressureTone(sp, 'settlement'));
+
+      // Workflow
+      els.wRetries.textContent = String(Math.round(w.metrics.retryStorm || 0));
+      els.wLagMs.textContent = `${Math.round(w.metrics.lagMs || 0)}ms`;
+      els.wBlocked.textContent = String(Math.round(w.metrics.blocked || 0));
+
+      const wLabel = (wp >= 0.62 || (w.metrics.retryStorm||0) > 70)
+        ? 'RETRY STORM'
+        : (wp >= 0.38)
+          ? 'PROPAGATION LAG'
+          : 'FLOWING';
+      setOpLabel(els.wOpLabel, wLabel, pressureTone(wp, 'workflow'));
     }
 
     function refreshSelected(){
@@ -3019,12 +3173,14 @@
       OperationalDataLayer.tick();
       refreshSystem();
       refreshSelected();
+      refreshPressurePanels();
     }, 900);
 
     // Boot
     VisualOrbitEngine.mount();
     refreshSystem();
     refreshSelected();
+    refreshPressurePanels();
     refreshTicker();
     refreshAuthUi();
     ContextPanels.snapshot();

@@ -470,6 +470,7 @@
         <div class="stream" id="ticker"></div>
         <button class="btn" id="pauseBtn">pause</button>
         <button class="btn" id="persistBtn" title="Persist timeline in localStorage">persist</button>
+        <button class="btn" id="uiPersistBtn" title="Persist UI state (mode, drill, selection)">ui:off</button>
         <button class="btn" id="clearBtn">clear</button>
       </div>
     </main>
@@ -1106,7 +1107,7 @@
     })();
 
     // -------------------------------
-    // 3) Event Streams (ticker)
+    // 3) UI State (optional persistence)
     // -------------------------------
     const UIState = (() => {
       let mode = 'observability';
@@ -1114,24 +1115,86 @@
       let drillView = 'all'; // all | guardian | workflow | settlement | trust | ai | approvals | retries
       let recordMode = false;
       let hoveredId = null;
+
+      // UI persistence (optional)
+      const UIKEY_ENABLED = 'synora.ui.persist.enabled.v1';
+      const UIKEY_STATE = 'synora.ui.state.v1';
+      let persistUiEnabled = false;
+
+      function loadUiEnabled(){
+        try{ persistUiEnabled = localStorage.getItem(UIKEY_ENABLED) === '1'; } catch {}
+      }
+      function saveUiEnabled(){
+        try{ localStorage.setItem(UIKEY_ENABLED, persistUiEnabled ? '1' : '0'); } catch {}
+      }
+      function saveUiState(){
+        if(!persistUiEnabled) return;
+        try{
+          const payload = {
+            v: 1,
+            ts: new Date().toISOString(),
+            mode,
+            drill,
+            drillView,
+            recordMode,
+            selectedId: RuntimeStateEngine?.selectedId || 'core',
+          };
+          localStorage.setItem(UIKEY_STATE, JSON.stringify(payload));
+        } catch {}
+      }
+      function loadUiState(){
+        if(!persistUiEnabled) return;
+        try{
+          const raw = localStorage.getItem(UIKEY_STATE);
+          if(!raw) return;
+          const j = JSON.parse(raw);
+          if(j && typeof j === 'object'){
+            if(j.mode) mode = String(j.mode);
+            if(j.drillView) drillView = String(j.drillView);
+            if(typeof j.recordMode === 'boolean') recordMode = j.recordMode;
+            if(j.drill === null || typeof j.drill === 'object') drill = j.drill;
+          }
+        } catch {}
+      }
+
+      loadUiEnabled();
+      loadUiState();
       const subs = new Set();
       const drillSubs = new Set();
-      function setMode(m){ mode = m; subs.forEach(fn=>fn(mode)); }
+      function setMode(m){ mode = m; subs.forEach(fn=>fn(mode)); saveUiState(); }
       function setDrill(next){
         drill = next;
         if(!next) drillView = 'all';
         drillSubs.forEach(fn=>fn(drill));
+        saveUiState();
       }
       function clearDrill(){ setDrill(null); }
-      function setDrillView(v){ drillView = v; drillSubs.forEach(fn=>fn(drill)); }
-      function setRecordMode(v){ recordMode = !!v; }
+      function setDrillView(v){ drillView = v; drillSubs.forEach(fn=>fn(drill)); saveUiState(); }
+      function setRecordMode(v){ recordMode = !!v; saveUiState(); }
       function setHovered(id){ hoveredId = id; }
+
+      function _getPersistedSelectedId(){
+        try{
+          const raw = localStorage.getItem(UIKEY_STATE);
+          const j = raw ? JSON.parse(raw) : null;
+          const id = j?.selectedId ? String(j.selectedId) : null;
+          return id;
+        } catch { return null; }
+      }
       return {
         get mode(){return mode;},
         get drill(){return drill;},
         get drillView(){return drillView;},
         get recordMode(){return recordMode;},
         get hoveredId(){return hoveredId;},
+
+        get persistUiEnabled(){ return persistUiEnabled; },
+        setPersistUiEnabled(v){ persistUiEnabled = !!v; saveUiEnabled(); saveUiState(); },
+        resetUiState(){
+          drill = null; drillView = 'all'; mode = 'observability'; recordMode = false;
+          try{ localStorage.removeItem(UIKEY_STATE); } catch {}
+        },
+        _getPersistedSelectedId,
         setMode,
         setDrill,
         clearDrill,
@@ -2134,6 +2197,7 @@
     const els = {
       healthDot: $('healthDot'), healthScore: $('healthScore'), eps: $('eps'), orch: $('orch'),
       ticker: $('ticker'), pauseBtn: $('pauseBtn'), persistBtn: $('persistBtn'), clearBtn: $('clearBtn'),
+      uiPersistBtn: $('uiPersistBtn'),
       drillClear: $('drillClear'),
       selId: $('selId'), selType: $('selType'), selState: $('selState'), selHealth: $('selHealth'),
       selEpm: $('selEpm'), selP95: $('selP95'), selQueue: $('selQueue'), selCorr: $('selCorr'),
@@ -3279,6 +3343,21 @@
       });
     }
 
+    // UI persist toggle
+    function refreshUiPersistBtn(){
+      if(!els.uiPersistBtn) return;
+      const on = !!UIState.persistUiEnabled;
+      els.uiPersistBtn.textContent = on ? 'ui:on' : 'ui:off';
+      els.uiPersistBtn.classList.toggle('active', on);
+    }
+    refreshUiPersistBtn();
+    if(els.uiPersistBtn){
+      els.uiPersistBtn.addEventListener('click', () => {
+        UIState.setPersistUiEnabled(!UIState.persistUiEnabled);
+        refreshUiPersistBtn();
+      });
+    }
+
     els.clearBtn.addEventListener('click', () => {
       EventStreams.clear();
       try{ WorkflowRuntime.reset(); } catch {}
@@ -3336,6 +3415,7 @@
     } catch {}
 
     RuntimeStateEngine.onSelect(() => refreshSelected());
+    RuntimeStateEngine.onSelect(() => { try{ if(UIState.persistUiEnabled) UIState.setMode(UIState.mode); } catch {} });
 
     // Main loop: operational ticks
     setInterval(() => {
@@ -3355,6 +3435,15 @@
     ContextPanels.snapshot();
     refreshDrillUi();
     applyDrillBodyClass();
+
+    // Restore selected node if UI persistence enabled
+    try{
+      const sid = UIState._getPersistedSelectedId();
+      if(UIState.persistUiEnabled && sid){
+        const exists = OperationalDataLayer.nodes.some(n=>n.id===sid);
+        if(exists) RuntimeStateEngine.setSelected(sid);
+      }
+    } catch {}
 
     // Attempt auto-connect
     // 1) Prefer same-origin Core API when available

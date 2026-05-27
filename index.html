@@ -2029,9 +2029,8 @@
     async function refreshAuthUi(){
       try{
         const res = await fetch('/api/auth/status', { cache: 'no-store' });
-        if(!res.ok) throw new Error(`auth status http ${res.status}`);
-        const j = await res.json();
-        const authed = !!j?.authenticated;
+        const j = await res.json().catch(()=>({ ok:false }));
+        const authed = !!j?.authenticated && res.ok;
         // EMIT is an operator action → show only when authenticated.
         els.emitBtn.style.display = authed ? '' : 'none';
 
@@ -2040,7 +2039,8 @@
           els.authModal.classList.toggle('open', !authed);
           els.authModal.setAttribute('aria-hidden', authed ? 'true' : 'false');
           if(!authed){
-            els.authMsg.textContent = (j?.ok===false) ? 'status: auth not configured' : 'status: locked';
+            const err = String(j?.error||'');
+            els.authMsg.textContent = err ? `status: locked (${err})` : 'status: locked';
             setTimeout(()=>{ try{ els.totpCode?.focus(); } catch {} }, 50);
           } else {
             els.authMsg.textContent = `status: unlocked (${j?.role||'ok'})`;

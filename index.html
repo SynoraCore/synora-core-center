@@ -1827,6 +1827,25 @@
         ctx.restore();
       }
 
+      function withAlpha(col, a){
+        const s = String(col||'');
+        const aa = Math.max(0, Math.min(1, Number(a||0)));
+        // rgba(r,g,b,a)
+        if(s.startsWith('rgba(')){
+          return s.replace(/rgba\(([^)]+)\)/, (m,inner)=>{
+            const parts = inner.split(',').map(x=>x.trim());
+            if(parts.length < 3) return m;
+            const rgb = parts.slice(0,3).join(',');
+            return `rgba(${rgb},${aa})`;
+          });
+        }
+        // rgb(r,g,b)
+        if(s.startsWith('rgb(')){
+          return s.replace(/rgb\(([^)]+)\)/, (m,inner)=> `rgba(${inner},${aa})`);
+        }
+        return s;
+      }
+
       function drawRing(r, alpha, col){
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -2182,12 +2201,12 @@
           try{ latentK = (new URL(location.href).searchParams.get('latent') === 'high') ? 1.55 : 1; } catch {}
 
           const a = vFade * (UIState.recordMode ? 0.10 : 0.20) * latentK * (0.60 + 0.40*pulse);
-          const col = 'rgba(255,255,255,.40)';
-          drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: col, spacing: 5, angle: -Math.PI/6 });
+          const hatchCol = withAlpha(pe.rim, 0.70); // alpha controlled by ctx.globalAlpha
+          drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: hatchCol, spacing: 5, angle: -Math.PI/6 });
           // subtle inner ring to differentiate from infra nodes
           ctx.save();
           ctx.globalAlpha = vFade * 0.44 * latentK;
-          ctx.strokeStyle = 'rgba(255,255,255,.18)';
+          ctx.strokeStyle = withAlpha(pe.rim, 0.22);
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(px,py, baseR-4.0, 0, Math.PI*2);
@@ -2196,7 +2215,7 @@
 
           // latent "breath" halo (very subtle, but visible)
           const breath = (0.55 + 0.45*Math.sin(t*1.2 + n.orbit.a0*3.0));
-          drawGlow(px, py, baseR*(4.9 + breath*0.7), 'rgba(255,255,255,.10)', vFade * 0.14 * latentK * breath);
+          drawGlow(px, py, baseR*(4.9 + breath*0.7), withAlpha(pe.glow, 0.22), vFade * 0.16 * latentK * breath);
         }
 
         // state rim (persona + state)

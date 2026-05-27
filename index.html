@@ -1841,6 +1841,17 @@
         const b = posById.get(l.to);
         if(!a||!b) return;
 
+        // Backbone: permanent operational spine (hierarchy + legibility)
+        // CORE ↔ EVENT ↔ WORKFLOW ↔ GUARDIAN ↔ SETTLEMENT
+        const isBackboneEdge = (() => {
+          const f = l.from, t = l.to;
+          const on = (x,y) => (f===x && t===y) || (f===y && t===x);
+          return on('core','event')
+            || on('event','workflow')
+            || on('workflow','guardian')
+            || on('guardian','settlement');
+        })();
+
         const fset = focusSet();
         const isFocus = fset ? (fset.has(l.from) && fset.has(l.to)) : true;
 
@@ -1890,13 +1901,21 @@
         };
         const spineBoost = (fset && isFocus) ? 1.25 : 1;
         const baseAlpha = phys.alpha * spineBoost * drillFade * focus * Math.min(0.30, 0.06 + l.rate*0.06 + heat*0.20);
-        const kindCol = (() => {
+        const kindCol0 = (() => {
           if(l.kind==='guardian') return 'rgba(64,245,255,.55)';
           if(l.kind==='settlement') return 'rgba(139,92,246,.55)';
           if(l.kind==='workflow') return 'rgba(76,125,255,.50)';
           if(l.kind==='notification') return 'rgba(212,175,55,.45)';
           return 'rgba(255,255,255,.35)';
         })();
+
+        // Hybrid visibility:
+        // - Backbone always readable (amber institutional)
+        // - In drill/focus: relevant path gets stronger amber; unrelated goes ghost
+        const inDrill = !!fset;
+        const focusStrong = inDrill && isFocus;
+        const backboneCol = focusStrong ? 'rgba(212,175,55,.70)' : 'rgba(212,175,55,.50)';
+        const kindCol = isBackboneEdge ? backboneCol : kindCol0;
 
         // de-emphasize long, secondary links (spaghetti control)
         const dist = Math.hypot(b.x-a.x, b.y-a.y);
@@ -1910,10 +1929,14 @@
         const frag = P.frag * (congested ? 1.15 : 1);
         const fragDash = frag > 0.10;
 
+        // Backbone gets a controlled boost (no bloom/fog): slightly thicker + more alpha.
+        const bbW = isBackboneEdge ? (focusStrong ? 1.55 : 1.35) : 1;
+        const bbA = isBackboneEdge ? (focusStrong ? 1.85 : 1.55) : 1;
+
         ctx.save();
-        ctx.globalAlpha = baseAlpha * longFade * sideFade * P.linkAlpha;
+        ctx.globalAlpha = Math.min(0.46, baseAlpha * longFade * sideFade * P.linkAlpha * bbA);
         ctx.strokeStyle = kindCol;
-        ctx.lineWidth = phys.width;
+        ctx.lineWidth = phys.width * bbW;
         if(fragDash){
           // Elegant fragmentation (DEGRADED/CRITICAL): broken trails, not “dashed lines”.
           const d0 = 10 + frag*18;

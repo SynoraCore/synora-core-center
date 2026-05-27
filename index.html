@@ -1675,11 +1675,11 @@
       // Mood targets (operator should FEEL it without reading).
       // CALM/FOCUSED are sub-modes of NORMAL.
       const ST = {
-        NORMAL:   { orbit:1.00, linkAlpha:1.00, dens:1.00, glow:1.00, jitter:0.00, frag:0.00, ripple:0.00, throughput:1.00, noise:0.00 },
-        ELEVATED: { orbit:1.06, linkAlpha:1.08, dens:1.10, glow:1.12, jitter:0.06, frag:0.05, ripple:0.04, throughput:0.96, noise:0.03 },
-        DEGRADED: { orbit:0.94, linkAlpha:0.92, dens:0.82, glow:0.92, jitter:0.14, frag:0.22, ripple:0.08, throughput:0.84, noise:0.07 },
-        CRITICAL: { orbit:0.86, linkAlpha:0.82, dens:0.62, glow:0.98, jitter:0.22, frag:0.42, ripple:0.16, throughput:0.70, noise:0.10 },
-        RECOVERY: { orbit:0.96, linkAlpha:0.96, dens:0.92, glow:1.04, jitter:0.09, frag:0.12, ripple:0.07, throughput:0.90, noise:0.05 },
+        NORMAL:   { orbit:1.00, linkAlpha:1.00, linkW:1.00, dens:1.00, glow:1.00, jitter:0.00, frag:0.00, ripple:0.00, throughput:1.00, noise:0.00 },
+        ELEVATED: { orbit:1.06, linkAlpha:1.08, linkW:1.04, dens:1.10, glow:1.12, jitter:0.06, frag:0.05, ripple:0.04, throughput:0.96, noise:0.03 },
+        DEGRADED: { orbit:0.94, linkAlpha:0.92, linkW:1.08, dens:0.82, glow:0.92, jitter:0.14, frag:0.22, ripple:0.08, throughput:0.84, noise:0.07 },
+        CRITICAL: { orbit:0.86, linkAlpha:0.82, linkW:1.14, dens:0.62, glow:0.98, jitter:0.22, frag:0.42, ripple:0.16, throughput:0.70, noise:0.10 },
+        RECOVERY: { orbit:0.96, linkAlpha:0.96, linkW:1.06, dens:0.92, glow:1.04, jitter:0.09, frag:0.12, ripple:0.07, throughput:0.90, noise:0.05 },
       };
 
       // Hysteresis to avoid jittery state flips.
@@ -1738,6 +1738,7 @@
         phase = {
           orbit:     lerp(phase.orbit,     target.orbit,     k),
           linkAlpha: lerp(phase.linkAlpha, target.linkAlpha, k),
+          linkW:     lerp(phase.linkW,     target.linkW,     k),
           dens:      lerp(phase.dens,      target.dens,      k),
           glow:      lerp(phase.glow,      target.glow,      k),
           jitter:    lerp(phase.jitter,    target.jitter,    k),
@@ -1925,7 +1926,7 @@
         const isSideInfra = (l.from==='identity' || l.to==='identity' || l.from==='notification' || l.to==='notification');
         const sideFade = (UIState.mode==='observability' && isSideInfra) ? 0.45 : 1;
 
-        const P = canvas._physics || { linkAlpha:1, frag:0, noise:0 };
+        const P = canvas._physics || { linkAlpha:1, linkW:1, frag:0, noise:0 };
         const frag = P.frag * (congested ? 1.15 : 1);
         const fragDash = frag > 0.10;
 
@@ -1933,31 +1934,54 @@
         const bbW = isBackboneEdge ? (focusStrong ? 1.55 : 1.35) : 1;
         const bbA = isBackboneEdge ? (focusStrong ? 1.85 : 1.55) : 1;
 
-        ctx.save();
-        ctx.globalAlpha = Math.min(0.46, baseAlpha * longFade * sideFade * P.linkAlpha * bbA);
-        ctx.strokeStyle = kindCol;
-        ctx.lineWidth = phys.width * bbW;
-        if(fragDash){
-          // Elegant fragmentation (DEGRADED/CRITICAL): broken trails, not “dashed lines”.
-          const d0 = 10 + frag*18;
-          const g0 = 10 + frag*26;
-          ctx.setLineDash([d0, g0]);
-          ctx.lineDashOffset = -(performance.now()/1000) * (6 + frag*14);
-        }
-        ctx.beginPath();
+        const clamp = (x,a,b)=>Math.max(a, Math.min(b, x));
+        const alpha0 = baseAlpha * longFade * sideFade * P.linkAlpha * bbA;
+        const minA = isBackboneEdge ? (focusStrong ? 0.20 : 0.14) : (focusStrong ? 0.11 : 0.06);
+        const alpha = clamp(alpha0, minA * drillFade, 0.55);
+        const w0 = phys.width * bbW * (P.linkW || 1);
+        const w = clamp(w0, isBackboneEdge ? 1.15 : 0.85, isBackboneEdge ? 2.55 : 2.15);
+
         // subtle curve
         const mx = (a.x+b.x)/2;
         const my = (a.y+b.y)/2;
         const dx = b.x-a.x;
         const dy = b.y-a.y;
-        // curve more for long links and keep curvature sign stable to reduce visual chaos
         const k = 0.08 + Math.min(0.10, dist/2200);
         const sign = (l.from < l.to) ? 1 : -1;
         const cx = mx - dy*k*sign;
         const cy = my + dx*k*sign;
+
+        // Two-pass stroke: underlay for legibility + main stroke for definition.
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = kindCol;
+
+        // underlay (soft)
+        ctx.globalAlpha = alpha * (isBackboneEdge ? 0.42 : 0.34);
+        ctx.lineWidth = w * (isBackboneEdge ? 2.05 : 1.85);
+        ctx.setLineDash([]);
+        ctx.beginPath();
         ctx.moveTo(a.x,a.y);
         ctx.quadraticCurveTo(cx,cy,b.x,b.y);
         ctx.stroke();
+
+        // main stroke
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = w;
+        if(fragDash){
+          const d0 = 10 + frag*18;
+          const g0 = 10 + frag*26;
+          ctx.setLineDash([d0, g0]);
+          ctx.lineDashOffset = -(performance.now()/1000) * (6 + frag*14);
+        } else {
+          ctx.setLineDash([]);
+        }
+        ctx.beginPath();
+        ctx.moveTo(a.x,a.y);
+        ctx.quadraticCurveTo(cx,cy,b.x,b.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
         ctx.restore();
 
         // particles (event streams)

@@ -1890,13 +1890,19 @@
         };
         const spineBoost = (fset && isFocus) ? 1.25 : 1;
         const baseAlpha = phys.alpha * spineBoost * drillFade * focus * Math.min(0.30, 0.06 + l.rate*0.06 + heat*0.20);
-        const kindCol = (() => {
+        const kindCol0 = (() => {
           if(l.kind==='guardian') return 'rgba(64,245,255,.55)';
           if(l.kind==='settlement') return 'rgba(139,92,246,.55)';
           if(l.kind==='workflow') return 'rgba(76,125,255,.50)';
           if(l.kind==='notification') return 'rgba(212,175,55,.45)';
           return 'rgba(255,255,255,.35)';
         })();
+
+        // Premium “neural gold” spine: important paths can read as luminous/gilded
+        // without turning into a generic dashboard.
+        const isSpine = (l.from==='core' || l.to==='core' || l.from==='event' || l.to==='event');
+        const spineGold = isSpine && (UIState.mode==='observability' || (fset && isFocus));
+        const kindCol = spineGold ? 'rgba(212,175,55,.56)' : kindCol0;
 
         // de-emphasize long, secondary links (spaghetti control)
         const dist = Math.hypot(b.x-a.x, b.y-a.y);
@@ -1914,6 +1920,13 @@
         ctx.globalAlpha = baseAlpha * longFade * sideFade * P.linkAlpha;
         ctx.strokeStyle = kindCol;
         ctx.lineWidth = phys.width;
+
+        // Luminous spine (gold) — subtle, cinematic. Keep cheap: only on spine links.
+        if(spineGold && !UIState.recordMode){
+          const hot = Math.max(heat, (fset && isFocus) ? 0.35 : 0);
+          ctx.shadowColor = 'rgba(212,175,55,.65)';
+          ctx.shadowBlur = 10 + hot*18;
+        }
         if(fragDash){
           // Elegant fragmentation (DEGRADED/CRITICAL): broken trails, not “dashed lines”.
           const d0 = 10 + frag*18;

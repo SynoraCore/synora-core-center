@@ -2200,13 +2200,23 @@
           let latentK = 1;
           try{ latentK = (new URL(location.href).searchParams.get('latent') === 'high') ? 1.55 : 1; } catch {}
 
-          const a = vFade * (UIState.recordMode ? 0.10 : 0.20) * latentK * (0.60 + 0.40*pulse);
-          const hatchCol = withAlpha(pe.rim, 0.70); // alpha controlled by ctx.globalAlpha
+          // "95% fill" feel: a tinted interior + hatch on top.
+          const fillA = vFade * (UIState.recordMode ? 0.10 : 0.18) * latentK;
+          ctx.save();
+          ctx.globalAlpha = fillA;
+          ctx.fillStyle = withAlpha(pe.glow, 0.38);
+          ctx.beginPath();
+          ctx.arc(px,py, baseR-2.0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+
+          const a = vFade * (UIState.recordMode ? 0.14 : 0.32) * latentK * (0.60 + 0.40*pulse);
+          const hatchCol = withAlpha(pe.rim, 0.88); // alpha controlled by ctx.globalAlpha
           drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: hatchCol, spacing: 5, angle: -Math.PI/6 });
           // subtle inner ring to differentiate from infra nodes
           ctx.save();
-          ctx.globalAlpha = vFade * 0.44 * latentK;
-          ctx.strokeStyle = withAlpha(pe.rim, 0.22);
+          ctx.globalAlpha = vFade * 0.52 * latentK;
+          ctx.strokeStyle = withAlpha(pe.rim, 0.30);
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(px,py, baseR-4.0, 0, Math.PI*2);
@@ -2215,7 +2225,7 @@
 
           // latent "breath" halo (very subtle, but visible)
           const breath = (0.55 + 0.45*Math.sin(t*1.2 + n.orbit.a0*3.0));
-          drawGlow(px, py, baseR*(4.9 + breath*0.7), withAlpha(pe.glow, 0.22), vFade * 0.16 * latentK * breath);
+          drawGlow(px, py, baseR*(4.9 + breath*0.7), withAlpha(pe.glow, 0.28), vFade * 0.18 * latentK * breath);
         }
 
         // state rim (persona + state)

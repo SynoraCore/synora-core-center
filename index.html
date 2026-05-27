@@ -1801,6 +1801,32 @@
         ctx.restore();
       }
 
+      function drawHatchCircle(x,y,r, opts={}){
+        const alpha = opts.alpha ?? 0.10;
+        const col = opts.color ?? 'rgba(255,255,255,.22)';
+        const spacing = opts.spacing ?? 6;
+        const ang = opts.angle ?? (-Math.PI/6);
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(ang);
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        // clip to circle
+        ctx.beginPath();
+        ctx.arc(0,0,r,0,Math.PI*2);
+        ctx.clip();
+        // draw diagonal hatch lines
+        const L = r*2.6;
+        for(let yy=-L; yy<=L; yy+=spacing){
+          ctx.beginPath();
+          ctx.moveTo(-L, yy);
+          ctx.lineTo(L, yy);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       function drawRing(r, alpha, col){
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -2122,6 +2148,22 @@
         ctx.arc(px,py, baseR, 0, Math.PI*2);
         ctx.fill();
         ctx.stroke();
+
+        // Verticals: latent hatch texture (quiet institutional presence)
+        if(n.type==='vertical'){
+          const a = drillFade * (UIState.recordMode ? 0.06 : 0.10) * (0.65 + 0.35*pulse);
+          const col = 'rgba(255,255,255,.28)';
+          drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: col, spacing: 6, angle: -Math.PI/6 });
+          // subtle inner ring to differentiate from infra nodes
+          ctx.save();
+          ctx.globalAlpha = drillFade * 0.30;
+          ctx.strokeStyle = 'rgba(255,255,255,.10)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(px,py, baseR-4.0, 0, Math.PI*2);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         // state rim (persona + state)
         ctx.globalAlpha = 0.88;

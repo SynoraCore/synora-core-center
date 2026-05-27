@@ -1661,6 +1661,104 @@
       document.body.classList.toggle('drill-active', !!UIState.drill?.corr);
     }
 
+    // -------------------------------------------------
+    // Operational Physics Engine (Phase 1 scaffolding)
+    // -------------------------------------------------
+    // Converts operational stress into cinematic, premium “runtime physics”.
+    // Non-breaking by design: defaults to NORMAL and only scales existing
+    // visuals (speed/density/glow/jitter) with gentle, elegant deltas.
+    const OperationalPhysicsEngine = (() => {
+      const clamp01 = (x)=>Math.max(0, Math.min(1, x));
+      const lerp = (a,b,t)=>a+(b-a)*t;
+      const smooth = (x)=> x*x*(3-2*x);
+
+      // Mood targets (operator should FEEL it without reading).
+      // CALM/FOCUSED are sub-modes of NORMAL.
+      const ST = {
+        NORMAL:   { orbit:1.00, linkAlpha:1.00, dens:1.00, glow:1.00, jitter:0.00, frag:0.00, ripple:0.00, throughput:1.00, noise:0.00 },
+        ELEVATED: { orbit:1.06, linkAlpha:1.08, dens:1.10, glow:1.12, jitter:0.06, frag:0.05, ripple:0.04, throughput:0.96, noise:0.03 },
+        DEGRADED: { orbit:0.94, linkAlpha:0.92, dens:0.82, glow:0.92, jitter:0.14, frag:0.22, ripple:0.08, throughput:0.84, noise:0.07 },
+        CRITICAL: { orbit:0.86, linkAlpha:0.82, dens:0.62, glow:0.98, jitter:0.22, frag:0.42, ripple:0.16, throughput:0.70, noise:0.10 },
+        RECOVERY: { orbit:0.96, linkAlpha:0.96, dens:0.92, glow:1.04, jitter:0.09, frag:0.12, ripple:0.07, throughput:0.90, noise:0.05 },
+      };
+
+      // Hysteresis to avoid jittery state flips.
+      let state = 'NORMAL';
+      let prev = 'NORMAL';
+      let since = performance.now();
+      let phase = { ...ST.NORMAL };
+
+      function systemPressure(){
+        try{
+          const g = OperationalDataLayer.nodes.find(n=>n.id==='guardian')?.stress?.p || 0;
+          const s = OperationalDataLayer.nodes.find(n=>n.id==='settlement')?.stress?.p || 0;
+          const w = OperationalDataLayer.nodes.find(n=>n.id==='workflow')?.stress?.p || 0;
+          const core = OperationalDataLayer.nodes.find(n=>n.id==='core')?.stress?.p || 0;
+          const sg = EventReactor.severityGlow || 0;
+          // core already receives maxP*0.78 in panels; take the max and add a gentle severity tint.
+          return clamp01(Math.max(core, g, s, w) + sg*0.22);
+        } catch { return 0; }
+      }
+
+      function classify(p){
+        // Recovery is triggered when dropping from DEGRADED/CRITICAL.
+        if(p >= 0.84) return 'CRITICAL';
+        if(p >= 0.62) return 'DEGRADED';
+        if(p >= 0.40) return 'ELEVATED';
+        return 'NORMAL';
+      }
+
+      function step(dt){
+        const p = systemPressure();
+        const wanted = classify(p);
+
+        // Recovery: if we were in a worse state and are trending down.
+        const wasBad = (state==='CRITICAL' || state==='DEGRADED');
+        const nowOk = (wanted==='ELEVATED' || wanted==='NORMAL');
+        const tNow = performance.now();
+
+        // State hysteresis windows (ms)
+        const minHold = 1200;
+        const canFlip = (tNow - since) > minHold;
+
+        let next = wanted;
+        if(wasBad && nowOk) next = 'RECOVERY';
+        if(state==='RECOVERY' && wanted==='NORMAL' && (tNow - since) > 2200) next = 'NORMAL';
+        if(state==='RECOVERY' && wanted==='ELEVATED' && (tNow - since) > 2200) next = 'ELEVATED';
+
+        if(next !== state && canFlip){
+          prev = state;
+          state = next;
+          since = tNow;
+        }
+
+        // Blend physics smoothly toward target.
+        const target = ST[state] || ST.NORMAL;
+        const k = Math.max(0.04, Math.min(0.22, dt*0.85));
+        phase = {
+          orbit:     lerp(phase.orbit,     target.orbit,     k),
+          linkAlpha: lerp(phase.linkAlpha, target.linkAlpha, k),
+          dens:      lerp(phase.dens,      target.dens,      k),
+          glow:      lerp(phase.glow,      target.glow,      k),
+          jitter:    lerp(phase.jitter,    target.jitter,    k),
+          frag:      lerp(phase.frag,      target.frag,      k),
+          ripple:    lerp(phase.ripple,    target.ripple,    k),
+          throughput:lerp(phase.throughput,target.throughput,k),
+          noise:     lerp(phase.noise,     target.noise,     k),
+        };
+
+        // Gentle “feels alive” curve: small extra modulation around elevated.
+        const bump = smooth(clamp01((p-0.28)/0.72));
+        phase.orbit *= (1 + bump*0.020);
+        phase.glow  *= (1 + bump*0.030);
+        phase.dens  *= (1 + bump*0.040);
+
+        return { ...phase, p, state, prev };
+      }
+
+      return { step };
+    })();
+
     // -------------------------------
     // 5) Visual Orbit Engine (canvas)
     // -------------------------------
@@ -1715,7 +1813,8 @@
 
       function nodePos(n, t){
         if(n.layer===1) return { x: CX, y: CY };
-        const a = n.orbit.a0 + t*n.orbit.w;
+        const phys = canvas._physics || { orbit: 1 };
+        const a = n.orbit.a0 + t*n.orbit.w*phys.orbit;
         return { x: CX + Math.cos(a)*n.orbit.r, y: CY + Math.sin(a)*n.orbit.r };
       }
 
@@ -1807,10 +1906,21 @@
         const isSideInfra = (l.from==='identity' || l.to==='identity' || l.from==='notification' || l.to==='notification');
         const sideFade = (UIState.mode==='observability' && isSideInfra) ? 0.45 : 1;
 
+        const P = canvas._physics || { linkAlpha:1, frag:0, noise:0 };
+        const frag = P.frag * (congested ? 1.15 : 1);
+        const fragDash = frag > 0.10;
+
         ctx.save();
-        ctx.globalAlpha = baseAlpha * longFade * sideFade;
+        ctx.globalAlpha = baseAlpha * longFade * sideFade * P.linkAlpha;
         ctx.strokeStyle = kindCol;
         ctx.lineWidth = phys.width;
+        if(fragDash){
+          // Elegant fragmentation (DEGRADED/CRITICAL): broken trails, not “dashed lines”.
+          const d0 = 10 + frag*18;
+          const g0 = 10 + frag*26;
+          ctx.setLineDash([d0, g0]);
+          ctx.lineDashOffset = -(performance.now()/1000) * (6 + frag*14);
+        }
         ctx.beginPath();
         // subtle curve
         const mx = (a.x+b.x)/2;
@@ -1835,7 +1945,8 @@
           return;
         }
         const rm = UIState.recordMode;
-        const particles = Math.min(rm ? 6 : 22, Math.max(1, Math.floor(phys.dens * (l.rate + heat*2.2)*(rm ? 1.2 : 3))));
+        const P2 = canvas._physics || { dens:1, throughput:1 };
+        const particles = Math.min(rm ? 6 : 22, Math.max(1, Math.floor(phys.dens * P2.dens * P2.throughput * (l.rate + heat*2.2)*(rm ? 1.2 : 3))));
         for(let i=0;i<particles;i++){
           // Retry-storm / congestion: intermittent stream fragmentation
           if(l.kind==='workflow' && edgeP>0.72){
@@ -1843,7 +1954,7 @@
             const gate = noise01(tt*2.1 + i*0.7 + (l.from.charCodeAt(0)||1));
             if(gate < (edgeP-0.68)*0.55) continue;
           }
-          const speed = phys.speed * ((rm ? 0.10 : 0.18) + l.rate*0.08 + heat*(rm ? 0.30 : 0.55));
+          const speed = phys.speed * ((rm ? 0.10 : 0.18) + l.rate*0.08 + heat*(rm ? 0.30 : 0.55)) * (canvas._physics?.throughput || 1);
           const u = (performance.now()/1000*speed + i/particles) % 1;
           // quadratic bezier point
           const x = (1-u)*(1-u)*a.x + 2*(1-u)*u*cx + u*u*b.x;
@@ -1903,11 +2014,12 @@
           : (n.id==='workflow')
             ? (0.30 + 0.70*noise01(t*4.1 + n.orbit.a0*6.7)) * Math.max(0, p-0.45)
             : 0;
-        const glowR = glowBoost * baseR* (isSelected? 4.4 : (n.layer===1 ? 5.6 : 3.4)) * (0.9 + pulse*0.06 + fx.pulse*(rm ? 0.10 : 0.22) + flicker*0.12);
+        const P = canvas._physics || { glow:1, jitter:0, noise:0, ripple:0 };
+        const glowR = glowBoost * baseR* (isSelected? 4.4 : (n.layer===1 ? 5.6 : 3.4)) * (0.9 + pulse*0.06 + fx.pulse*(rm ? 0.10 : 0.22) + flicker*0.12) * P.glow;
 
         // micro shake for degraded/high severity (reduced on non-focused nodes)
         const opShake = (n.layer===1) ? 0 : (Math.max(0, p-0.42) * (n.id==='guardian' ? 0.55 : 0.85));
-        const shake = damp * (fx.shake + opShake) * (n.layer===1 ? 0.0 : 1.0) * (fset && !fset.has(n.id) ? 0.15 : 1);
+        const shake = damp * (fx.shake + opShake + P.jitter*0.35) * (n.layer===1 ? 0.0 : 1.0) * (fset && !fset.has(n.id) ? 0.15 : 1);
         // Irregular vibration (avoid steady sine)
         const sx = (noise11(t*11.0 + n.orbit.a0*13) * 1.55 + Math.sin(t*37 + n.orbit.a0*13) * 0.35) * shake;
         const sy = (noise11(t*12.4 + n.orbit.a0*7)  * 1.55 + Math.cos(t*41 + n.orbit.a0*7)  * 0.35) * shake;
@@ -1938,6 +2050,18 @@
           drawGlow(px, py, 160, 'rgba(64,245,255,.06)', 1);
           drawGlow(px, py, 220, 'rgba(139,92,246,.05)', 1);
           drawGlow(px, py, 280, 'rgba(212,175,55,.035)', 1);
+
+          // Runtime ripple (CRITICAL/RECOVERY): elegant shockwaves
+          const rip = (canvas._physics?.ripple || 0);
+          if(rip > 0.01){
+            const tt = performance.now()/1000;
+            const k = 0.55 + 0.45*Math.sin(tt*1.2);
+            const a = Math.min(0.18, rip*0.22) * (0.55 + k*0.45);
+            const r1 = 230 + (Math.sin(tt*1.7)*12) + rip*40;
+            const r2 = 330 + (Math.cos(tt*1.3)*14) + rip*55;
+            drawRing(r1, a*0.55, 'rgba(255,207,74,.40)');
+            drawRing(r2, a*0.38, 'rgba(64,245,255,.32)');
+          }
         }
 
         // body
@@ -2044,11 +2168,14 @@
       }
 
       function drawBackdrop(t){
+        // Backdrop adapts slightly to global operational physics.
+        const P = canvas._physics || { noise:0, orbit:1 };
         // orbital rings
         const fset = focusSet();
-        const a1 = fset ? 0.05 : 0.14;
-        const a2 = fset ? 0.04 : 0.10;
-        const a3 = fset ? 0.03 : 0.08;
+        const n = P.noise || 0;
+        const a1 = (fset ? 0.05 : 0.14) * (1 - n*0.25);
+        const a2 = (fset ? 0.04 : 0.10) * (1 - n*0.22);
+        const a3 = (fset ? 0.03 : 0.08) * (1 - n*0.20);
         drawRing(170, a1, 'rgba(255,255,255,.22)');
         drawRing(290, a2, 'rgba(255,255,255,.18)');
         drawRing(420, a3, 'rgba(255,255,255,.16)');
@@ -2129,6 +2256,8 @@
       function frame(){
         const { t, dt } = MotionSystem.now();
         EventReactor.step(dt);
+        // Phase 1: compute and attach operational physics for this frame.
+        canvas._physics = OperationalPhysicsEngine.step(dt);
         ctx.clearRect(0,0,W,H);
         drawBackdrop(t);
 

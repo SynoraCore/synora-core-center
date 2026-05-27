@@ -2151,13 +2151,20 @@
 
         // Verticals: latent hatch texture (quiet institutional presence)
         if(n.type==='vertical'){
-          const a = drillFade * (UIState.recordMode ? 0.08 : 0.16) * (0.62 + 0.38*pulse);
-          const col = 'rgba(255,255,255,.34)';
+          // Verticals should remain latently visible even during drill spotlight.
+          const vFade = fset ? (fset.has(n.id) ? 1 : 0.55) : 1;
+
+          // Latent intensity knob: ?latent=high
+          let latentK = 1;
+          try{ latentK = (new URL(location.href).searchParams.get('latent') === 'high') ? 1.55 : 1; } catch {}
+
+          const a = vFade * (UIState.recordMode ? 0.10 : 0.20) * latentK * (0.60 + 0.40*pulse);
+          const col = 'rgba(255,255,255,.40)';
           drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: col, spacing: 5, angle: -Math.PI/6 });
           // subtle inner ring to differentiate from infra nodes
           ctx.save();
-          ctx.globalAlpha = drillFade * 0.38;
-          ctx.strokeStyle = 'rgba(255,255,255,.14)';
+          ctx.globalAlpha = vFade * 0.44 * latentK;
+          ctx.strokeStyle = 'rgba(255,255,255,.18)';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(px,py, baseR-4.0, 0, Math.PI*2);
@@ -2166,7 +2173,7 @@
 
           // latent "breath" halo (very subtle, but visible)
           const breath = (0.55 + 0.45*Math.sin(t*1.2 + n.orbit.a0*3.0));
-          drawGlow(px, py, baseR*(4.8 + breath*0.6), 'rgba(255,255,255,.08)', drillFade * 0.10 * breath);
+          drawGlow(px, py, baseR*(4.9 + breath*0.7), 'rgba(255,255,255,.10)', vFade * 0.14 * latentK * breath);
         }
 
         // state rim (persona + state)

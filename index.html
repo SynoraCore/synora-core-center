@@ -2151,18 +2151,22 @@
 
         // Verticals: latent hatch texture (quiet institutional presence)
         if(n.type==='vertical'){
-          const a = drillFade * (UIState.recordMode ? 0.06 : 0.10) * (0.65 + 0.35*pulse);
-          const col = 'rgba(255,255,255,.28)';
-          drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: col, spacing: 6, angle: -Math.PI/6 });
+          const a = drillFade * (UIState.recordMode ? 0.08 : 0.16) * (0.62 + 0.38*pulse);
+          const col = 'rgba(255,255,255,.34)';
+          drawHatchCircle(px, py, baseR-1.5, { alpha: a, color: col, spacing: 5, angle: -Math.PI/6 });
           // subtle inner ring to differentiate from infra nodes
           ctx.save();
-          ctx.globalAlpha = drillFade * 0.30;
-          ctx.strokeStyle = 'rgba(255,255,255,.10)';
+          ctx.globalAlpha = drillFade * 0.38;
+          ctx.strokeStyle = 'rgba(255,255,255,.14)';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(px,py, baseR-4.0, 0, Math.PI*2);
           ctx.stroke();
           ctx.restore();
+
+          // latent "breath" halo (very subtle, but visible)
+          const breath = (0.55 + 0.45*Math.sin(t*1.2 + n.orbit.a0*3.0));
+          drawGlow(px, py, baseR*(4.8 + breath*0.6), 'rgba(255,255,255,.08)', drillFade * 0.10 * breath);
         }
 
         // state rim (persona + state)

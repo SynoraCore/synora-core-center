@@ -559,6 +559,22 @@
         </div>
       </div>
 
+      <div class="panel" id="timelinePanel">
+        <h2>TIMELINE</h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px">
+          <input class="inp" id="corrFilter" placeholder="filter corr (ex: CORR-AB12...)" style="flex:1; min-width:200px" />
+          <button class="btn2" id="exportLog">export</button>
+          <label class="btn2" for="importLog" style="cursor:pointer">import</label>
+          <input id="importLog" type="file" accept="application/json" style="display:none" />
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70); margin-bottom:10px">
+          <div>buf: <span class="v" id="logSize">—</span></div>
+          <div>dropped: <span class="v" id="logDropped">—</span></div>
+          <div>persist: <span class="v" id="logPersist">—</span></div>
+        </div>
+        <div id="timeline" style="display:flex; flex-direction:column; gap:8px"></div>
+      </div>
+
       <div class="panel">
         <h2>NOTES</h2>
         <div style="font-size:12px; color:var(--muted); line-height:1.35">
@@ -2237,6 +2253,15 @@
       wLagMs: $('wLagMs'),
       wBlocked: $('wBlocked'),
       wOpLabel: $('wOpLabel'),
+
+      // Timeline
+      corrFilter: $('corrFilter'),
+      exportLog: $('exportLog'),
+      importLog: $('importLog'),
+      logSize: $('logSize'),
+      logDropped: $('logDropped'),
+      logPersist: $('logPersist'),
+      timeline: $('timeline'),
     };
 
     const ContextPanels = (() => {
@@ -2688,6 +2713,7 @@
     // Runtime pressure panels (Guardian / Settlement / Workflow)
     let recoveringUntil = 0;
     let lastMaxPressure = 0;
+    let SystemPressure = 0; // shared signal for visuals
 
     function setOpLabel(el, text, tone){
       if(!el) return;
@@ -2720,6 +2746,15 @@
       const sp = Number(s.stress?.p||0);
       const wp = Number(w.stress?.p||0);
       const maxP = Math.max(gp, sp, wp);
+      SystemPressure = maxP;
+
+      // Push pressure into core node so visuals feel system-wide.
+      try{
+        const core = OperationalDataLayer.nodes.find(n=>n.id==='core');
+        if(core){
+          core.stress = { p: Math.max(core.stress?.p||0, Math.min(1, maxP*0.78)), state: (maxP>=0.82?'SATURATED':maxP>=0.62?'DEGRADED':maxP>=0.38?'TENSE':'NOMINAL'), kind:'system' };
+        }
+      } catch {}
 
       // recovering heuristic: if we were high recently and now dropping
       if(maxP >= 0.70) lastMaxPressure = Math.max(lastMaxPressure, maxP);
@@ -2774,6 +2809,48 @@
           ? 'PROPAGATION LAG'
           : 'FLOWING';
       setOpLabel(els.wOpLabel, wLabel, pressureTone(wp, 'workflow'));
+    }
+
+    // Timeline (view over EventEngine)
+    function renderTimeline(){
+      if(!els.timeline) return;
+      const st = (typeof EventStreams.stats === 'function') ? EventStreams.stats() : { size:0, dropped:0, persistEnabled:false };
+      if(els.logSize) els.logSize.textContent = String(st.size ?? '—');
+      if(els.logDropped) els.logDropped.textContent = String(st.dropped ?? '—');
+      if(els.logPersist) els.logPersist.textContent = st.persistEnabled ? 'on' : 'off';
+
+      const filter = String(els.corrFilter?.value||'').trim().toUpperCase();
+      const items = filter ? EventStreams.byCorr(filter).slice().reverse() : EventEngine.items().slice(0, 42).slice().reverse();
+
+      const rows = items.slice(-24).map(e => {
+        const ts = String(e?.ts||'').slice(11,19);
+        const corr = String(e?.correlation_id||'—');
+        const sev = String(e?.severity||'info').toLowerCase();
+        const a = String(e?.action||'');
+        const eng = String(e?.path||e?.engine||'event').toLowerCase();
+        const tone = chipStyle(sev);
+        return `
+          <div style="display:flex; gap:8px; align-items:flex-start;">
+            <div style="min-width:58px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.58)">${ts||'—'}</div>
+            <div style="font-family:var(--mono); font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid ${tone.bd}; background:${tone.bg}; color:${tone.tx}">${eng}</div>
+            <div style="flex:1; font-size:12px; color:rgba(233,236,255,.86)">${a}</div>
+            <button class="btn2" data-corr="${corr}" style="padding:6px 8px">drill</button>
+          </div>
+        `;
+      }).join('');
+
+      els.timeline.innerHTML = rows || `<div style="font-size:12px; color:var(--muted)">sem eventos</div>`;
+      els.timeline.querySelectorAll('button[data-corr]').forEach(b => {
+        b.addEventListener('click', () => {
+          const corr = b.getAttribute('data-corr');
+          if(!corr) return;
+          UIState.setMode('workflows');
+          UIState.setDrill({ corr, vertical: null, id: null, ts: new Date().toISOString() });
+          refreshDrillUi();
+          applyDrillBodyClass();
+          refreshWorkflowPanel();
+        });
+      });
     }
 
     function refreshSelected(){
@@ -3364,7 +3441,59 @@
       try{ EventReactor.reset(); } catch {}
       refreshTicker();
       refreshWorkflowPanel();
+      renderTimeline();
     });
+
+    if(els.corrFilter){
+      els.corrFilter.addEventListener('input', () => renderTimeline());
+    }
+
+    if(els.exportLog){
+      els.exportLog.addEventListener('click', () => {
+        try{
+          const payload = {
+            v: 1,
+            ts: new Date().toISOString(),
+            items: EventEngine.items().slice().reverse(),
+          };
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `synora-core-center-eventlog-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(()=>URL.revokeObjectURL(url), 1500);
+        } catch {}
+      });
+    }
+
+    if(els.importLog){
+      els.importLog.addEventListener('change', async () => {
+        const f = els.importLog.files?.[0];
+        if(!f) return;
+        try{
+          const text = await f.text();
+          const j = JSON.parse(text);
+          const items = Array.isArray(j?.items) ? j.items : [];
+          EventStreams.clear();
+          try{ WorkflowRuntime.reset(); } catch {}
+          try{ EventReactor.reset(); } catch {}
+          items.forEach(e => { try{ EventStreams.push(e); } catch {} });
+          // Rebuild derived views
+          const past = EventEngine.items().slice().reverse();
+          past.forEach(e => { try{ EventReactor.ingest(e); } catch {}; try{ WorkflowRuntime.ingest(e); } catch {} });
+          refreshTicker();
+          refreshWorkflowPanel();
+          renderTimeline();
+        } catch {
+          alert('Import falhou: JSON inválido.');
+        } finally {
+          els.importLog.value = '';
+        }
+      });
+    }
 
     // Wire event bus -> ticker
     // If persistence is enabled, replay stored events into derived runtimes.
@@ -3386,6 +3515,7 @@
       WorkflowRuntime.ingest(evt);
       refreshTicker();
       refreshWorkflowPanel();
+      renderTimeline();
     });
 
     // In WF mode, keep right panel fresh even if no new event arrives
@@ -3431,6 +3561,7 @@
     refreshSelected();
     refreshPressurePanels();
     refreshTicker();
+    renderTimeline();
     refreshAuthUi().then(()=>scheduleAuthRetry());
     ContextPanels.snapshot();
     refreshDrillUi();

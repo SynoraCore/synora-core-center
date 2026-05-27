@@ -2128,31 +2128,33 @@
         const isCritical = (n.layer===1) || (n.layer===2);
         const isHot = (n.fx?.hotUntil || 0) > Date.now();
         const isStateImportant = (n.state && n.state !== 'active');
-        // Auto-contrast: peripheral labels stay tenuous unless they're hot/important
+        // Auto-contrast: peripheral labels stay subtle unless they're hot/important,
+        // but we keep them readable (premium “mission control”, not silent orbs).
         const shouldShow = isCritical || isSelected || hovered || (fset && fset.has(n.id)) || isHot || isStateImportant;
-        const labelAlpha = shouldShow ? (drillFade * 0.96) : (drillFade * 0.16);
+        const base = UIState.recordMode ? 0.14 : 0.34;
+        const labelAlpha = shouldShow ? (drillFade * 0.96) : (drillFade * base);
 
         const strongPlate = isCritical || isSelected || hovered || (fset && fset.has(n.id));
-        if(shouldShow){
-          // background plate only when activated
-          ctx.save();
-          ctx.globalAlpha = drillFade * (UIState.recordMode ? 0.55 : (strongPlate ? 0.44 : 0.32));
-          ctx.fillStyle = 'rgba(0,0,0,.62)';
-          const x = px - tw/2 - padX;
-          const y = ty - padY;
-          const w = tw + padX*2;
-          const h = fontSize + padY*2;
-          const r = 8;
-          ctx.beginPath();
-          ctx.moveTo(x+r, y);
-          ctx.arcTo(x+w, y, x+w, y+h, r);
-          ctx.arcTo(x+w, y+h, x, y+h, r);
-          ctx.arcTo(x, y+h, x, y, r);
-          ctx.arcTo(x, y, x+w, y, r);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        }
+        // background plate: always present, but very subtle when not activated
+        ctx.save();
+        ctx.globalAlpha = drillFade * (shouldShow
+          ? (UIState.recordMode ? 0.55 : (strongPlate ? 0.44 : 0.32))
+          : (UIState.recordMode ? 0.10 : 0.18));
+        ctx.fillStyle = 'rgba(0,0,0,.62)';
+        const x = px - tw/2 - padX;
+        const y = ty - padY;
+        const w = tw + padX*2;
+        const h = fontSize + padY*2;
+        const r = 8;
+        ctx.beginPath();
+        ctx.moveTo(x+r, y);
+        ctx.arcTo(x+w, y, x+w, y+h, r);
+        ctx.arcTo(x+w, y+h, x, y+h, r);
+        ctx.arcTo(x, y+h, x, y, r);
+        ctx.arcTo(x, y, x+w, y, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
 
         // outline + fill (always draw, but tenuous when not relevant)
         ctx.save();

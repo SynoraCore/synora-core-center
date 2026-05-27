@@ -405,7 +405,7 @@
 
     <main class="center" aria-label="Synora Core Center">
       <!-- AUTH overlay (TOTP) -->
-      <div class="modal" id="authModal" aria-hidden="true" style="display:flex;">
+      <div class="modal" id="authModal" aria-hidden="true">
         <div class="modalCard" style="max-width:520px">
           <h3>ACCESS • SYNORA CORE CENTER</h3>
           <div style="margin-top:10px; font-size:12px; color:rgba(233,236,255,.70); line-height:1.4">
@@ -2036,19 +2036,25 @@
 
         // Gate the whole runtime behind auth for MVP
         if(els.authModal){
-          els.authModal.classList.toggle('open', !authed);
-          els.authModal.setAttribute('aria-hidden', authed ? 'true' : 'false');
-          if(!authed){
-            const err = String(j?.error||'');
-            els.authMsg.textContent = err ? `status: locked (${err})` : 'status: locked';
-            setTimeout(()=>{ try{ els.totpCode?.focus(); } catch {} }, 50);
+          if(authed){
+            els.authModal.classList.remove('open');
+            els.authModal.setAttribute('aria-hidden', 'true');
+            // ensure overlay can't remain visible due to any inline styles
+            els.authModal.style.display = 'none';
+            if(els.authMsg) els.authMsg.textContent = `status: unlocked (${j?.role||'ok'})`;
           } else {
-            els.authMsg.textContent = `status: unlocked (${j?.role||'ok'})`;
+            els.authModal.style.display = '';
+            els.authModal.classList.add('open');
+            els.authModal.setAttribute('aria-hidden', 'false');
+            const err = String(j?.error||'');
+            if(els.authMsg) els.authMsg.textContent = err ? `status: locked (${err})` : 'status: locked';
+            setTimeout(()=>{ try{ els.totpCode?.focus(); } catch {} }, 50);
           }
         }
       } catch {
         els.emitBtn.style.display = 'none';
         if(els.authModal){
+          els.authModal.style.display = '';
           els.authModal.classList.add('open');
           els.authModal.setAttribute('aria-hidden','false');
           if(els.authMsg) els.authMsg.textContent = 'status: locked (auth offline)';

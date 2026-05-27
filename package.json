@@ -1,0 +1,12 @@
+{
+  "name": "synora-core-center",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Synora Core Center (MVP) — static UI + Vercel serverless auth",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "otplib": "^12.0.1"
+  }
+}
+

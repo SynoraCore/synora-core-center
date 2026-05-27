@@ -404,6 +404,27 @@
     </aside>
 
     <main class="center" aria-label="Synora Core Center">
+      <!-- AUTH overlay (TOTP) -->
+      <div class="modal" id="authModal" aria-hidden="true" style="display:flex;">
+        <div class="modalCard" style="max-width:520px">
+          <h3>ACCESS • SYNORA CORE CENTER</h3>
+          <div style="margin-top:10px; font-size:12px; color:rgba(233,236,255,.70); line-height:1.4">
+            Insira o código de 6 dígitos do Google Authenticator (TOTP).
+          </div>
+          <div class="field">
+            <label for="totpCode">ONE-TIME PASSCODE</label>
+            <input class="inp" id="totpCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••" autocomplete="one-time-code" />
+          </div>
+          <div class="modalActions">
+            <button class="btn2" id="authReload">reload</button>
+            <button class="btn2 primary" id="authLogin">unlock</button>
+          </div>
+          <div id="authMsg" style="margin-top:10px; font-size:11px; line-height:1.4; color:rgba(233,236,255,.70); font-family:var(--mono)">
+            status: locked
+          </div>
+        </div>
+      </div>
+
       <!-- Connect modal (prevents losing prompt when switching apps) -->
       <div class="modal" id="connectModal" aria-hidden="true">
         <div class="modalCard">
@@ -1962,6 +1983,12 @@
       scnSettlement: $('scnSettlement'),
       scnRetry: $('scnRetry'),
       scnCalm: $('scnCalm'),
+
+      authModal: $('authModal'),
+      totpCode: $('totpCode'),
+      authLogin: $('authLogin'),
+      authReload: $('authReload'),
+      authMsg: $('authMsg'),
     };
 
     const ContextPanels = (() => {
@@ -2007,10 +2034,59 @@
         const authed = !!j?.authenticated;
         // EMIT is an operator action → show only when authenticated.
         els.emitBtn.style.display = authed ? '' : 'none';
+
+        // Gate the whole runtime behind auth for MVP
+        if(els.authModal){
+          els.authModal.classList.toggle('open', !authed);
+          els.authModal.setAttribute('aria-hidden', authed ? 'true' : 'false');
+          if(!authed){
+            els.authMsg.textContent = (j?.ok===false) ? 'status: auth not configured' : 'status: locked';
+            setTimeout(()=>{ try{ els.totpCode?.focus(); } catch {} }, 50);
+          } else {
+            els.authMsg.textContent = `status: unlocked (${j?.role||'ok'})`;
+          }
+        }
       } catch {
         els.emitBtn.style.display = 'none';
+        if(els.authModal){
+          els.authModal.classList.add('open');
+          els.authModal.setAttribute('aria-hidden','false');
+          if(els.authMsg) els.authMsg.textContent = 'status: locked (auth offline)';
+        }
       }
     }
+
+    async function authLogin(){
+      const code = String(els.totpCode?.value||'').replace(/\s/g,'');
+      if(!/^\d{6}$/.test(code)){
+        if(els.authMsg) els.authMsg.textContent = 'status: invalid code';
+        return;
+      }
+      if(els.authMsg) els.authMsg.textContent = 'status: verifying…';
+      try{
+        const res = await fetch('/api/auth/verify', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const j = await res.json().catch(()=>({}));
+        if(!res.ok || !j?.ok){
+          if(els.authMsg) els.authMsg.textContent = 'status: unauthorized';
+          return;
+        }
+        if(els.authMsg) els.authMsg.textContent = 'status: unlocked';
+        els.totpCode.value = '';
+        await refreshAuthUi();
+      } catch {
+        if(els.authMsg) els.authMsg.textContent = 'status: auth error';
+      }
+    }
+
+    if(els.authLogin) els.authLogin.addEventListener('click', authLogin);
+    if(els.authReload) els.authReload.addEventListener('click', ()=>location.reload());
+    if(els.totpCode) els.totpCode.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter') authLogin();
+    });
 
     // -------------------------------
     // Minimal real Event Engine hookup

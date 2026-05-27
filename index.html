@@ -1979,8 +1979,9 @@
         const p = Math.max(0, Math.min(1, stress.p||0));
 
         const fset = focusSet();
-        // Aggressive spotlight during drill
-        const drillFade = fset ? (fset.has(n.id) ? 1 : 0.030) : 1;
+        // Spotlight during drill (keep non-focus visible enough to avoid “empty orbs”)
+        const drillFade = fset ? (fset.has(n.id) ? 1 : 0.12) : 1;
+        const labelDrillFade = fset ? (fset.has(n.id) ? 1 : 0.32) : 1;
 
         const hovered = UIState.hoveredId === n.id;
 
@@ -2132,12 +2133,12 @@
         // but we keep them readable (premium “mission control”, not silent orbs).
         const shouldShow = isCritical || isSelected || hovered || (fset && fset.has(n.id)) || isHot || isStateImportant;
         const base = UIState.recordMode ? 0.14 : 0.34;
-        const labelAlpha = shouldShow ? (drillFade * 0.96) : (drillFade * base);
+        const labelAlpha = shouldShow ? (labelDrillFade * 0.96) : (labelDrillFade * base);
 
         const strongPlate = isCritical || isSelected || hovered || (fset && fset.has(n.id));
         // background plate: always present, but very subtle when not activated
         ctx.save();
-        ctx.globalAlpha = drillFade * (shouldShow
+        ctx.globalAlpha = labelDrillFade * (shouldShow
           ? (UIState.recordMode ? 0.55 : (strongPlate ? 0.44 : 0.32))
           : (UIState.recordMode ? 0.10 : 0.18));
         ctx.fillStyle = 'rgba(0,0,0,.62)';

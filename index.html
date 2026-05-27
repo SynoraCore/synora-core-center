@@ -469,6 +469,7 @@
         <button class="btn" id="drillClear" style="display:none">drill: — ✕</button>
         <div class="stream" id="ticker"></div>
         <button class="btn" id="pauseBtn">pause</button>
+        <button class="btn" id="persistBtn" title="Persist timeline in localStorage">persist</button>
         <button class="btn" id="clearBtn">clear</button>
       </div>
     </main>
@@ -1310,31 +1311,147 @@
         return all.find(x=>String(x.corr||'')===c) || null;
       }
 
-      return { ingest, activeWorkflows, retryQueue, pendingApprovals, blockedStates, byCorr };
-    })();
-
-    const EventStreams = (() => {
-      const buf = [];
-      let paused = false;
-      const max = 120;
-
-      function push(evt){
-        if(paused) return;
-        buf.unshift({ raw: evt });
-        while(buf.length>max) buf.pop();
+      function reset(){
+        wf.clear();
+        retries.length = 0;
+        approvals.length = 0;
       }
 
+      return { ingest, activeWorkflows, retryQueue, pendingApprovals, blockedStates, byCorr, reset };
+    })();
+
+    // -------------------------------
+    // Event Engine (append-only + correlation + queue)
+    // -------------------------------
+    const EventEngine = (() => {
+      const subs = new Set();
+      const KEY_ENABLED = 'synora.persist.enabled.v1';
+      const KEY_LOG = 'synora.eventlog.v1';
+      const MAX = 500;         // in-memory cap
+      const PERSIST_MAX = 260; // localStorage cap
+
+      let paused = false;
+      let dropped = 0;
+      let persistEnabled = false;
+      let persistTimer = null;
+      let persistDirty = false;
+      const buf = []; // newest-first
+
+      function loadEnabledFromUrl(){
+        try{
+          const u = new URL(location.href);
+          const v = u.searchParams.get('persist');
+          if(v === '1') return true;
+          if(v === '0') return false;
+        } catch {}
+        return null;
+      }
+
+      function init(){
+        const urlPref = loadEnabledFromUrl();
+        if(urlPref !== null){
+          persistEnabled = !!urlPref;
+        } else {
+          try{ persistEnabled = localStorage.getItem(KEY_ENABLED) === '1'; } catch {}
+        }
+        if(persistEnabled) loadPersisted();
+      }
+
+      function setPaused(v){ paused = !!v; }
+      function setPersistEnabled(v){
+        persistEnabled = !!v;
+        try{ localStorage.setItem(KEY_ENABLED, persistEnabled ? '1' : '0'); } catch {}
+        if(persistEnabled) schedulePersist();
+      }
+
+      function schedulePersist(){
+        if(!persistEnabled) return;
+        persistDirty = true;
+        if(persistTimer) return;
+        persistTimer = setTimeout(() => {
+          persistTimer = null;
+          if(!persistEnabled || !persistDirty) return;
+          persistDirty = false;
+          try{
+            const payload = {
+              v: 1,
+              ts: new Date().toISOString(),
+              items: buf.slice(0, PERSIST_MAX).slice().reverse(), // oldest-first
+            };
+            localStorage.setItem(KEY_LOG, JSON.stringify(payload));
+          } catch {}
+        }, 750);
+      }
+
+      function loadPersisted(){
+        try{
+          const raw = localStorage.getItem(KEY_LOG);
+          if(!raw) return;
+          const j = JSON.parse(raw);
+          const items = Array.isArray(j?.items) ? j.items : [];
+          buf.length = 0;
+          for(const e of items){ if(e) buf.unshift(e); }
+          while(buf.length > MAX) buf.pop();
+        } catch {}
+      }
+
+      function append(evt){
+        if(paused) return;
+        if(!evt) return;
+        buf.unshift(evt);
+        if(buf.length > MAX){ buf.pop(); dropped++; }
+        schedulePersist();
+        subs.forEach(fn => { try{ fn(evt); } catch {} });
+      }
+
+      function clear(){
+        buf.length = 0;
+        dropped = 0;
+        persistDirty = true;
+        schedulePersist();
+        try{ if(!persistEnabled) localStorage.removeItem(KEY_LOG); } catch {}
+      }
+
+      function items(){ return buf.slice(); }
+      function byCorr(corr){
+        const c = String(corr||'');
+        if(!c) return [];
+        return buf.filter(e => String(e?.correlation_id||'')===c);
+      }
+      function stats(){ return { size: buf.length, dropped, paused, persistEnabled }; }
+      function onAppend(fn){ subs.add(fn); return () => subs.delete(fn); }
+
+      init();
+
       return {
+        append,
+        clear,
+        items,
+        byCorr,
+        stats,
+        onAppend,
         get paused(){ return paused; },
-        set paused(v){ paused = !!v; },
-        clear(){ buf.length = 0; },
-        items(){ return buf.slice(); },
+        set paused(v){ setPaused(v); },
+        get persistEnabled(){ return persistEnabled; },
+        set persistEnabled(v){ setPersistEnabled(v); },
+        reloadFromStorage: loadPersisted,
+      };
+    })();
+
+    // Event Streams (ticker view over EventEngine)
+    const EventStreams = (() => {
+      const max = 120;
+      function push(evt){ EventEngine.append(evt); }
+      return {
+        get paused(){ return EventEngine.paused; },
+        set paused(v){ EventEngine.paused = !!v; },
+        get persistEnabled(){ return EventEngine.persistEnabled; },
+        set persistEnabled(v){ EventEngine.persistEnabled = !!v; },
+        clear(){ EventEngine.clear(); },
+        items(){ return EventEngine.items().slice(0, max).map(raw => ({ raw })); },
         push,
-        byCorr(corr){
-          const c = String(corr||'');
-          if(!c) return [];
-          return buf.map(x=>x.raw).filter(e => String(e?.correlation_id||'')===c);
-        },
+        byCorr(corr){ return EventEngine.byCorr(corr); },
+        stats(){ return EventEngine.stats(); },
       };
     })();
 
@@ -1451,7 +1568,11 @@
         });
       }
 
-      return { ingest, linkHeat, step, get severityGlow(){return severityGlow;} };
+      function reset(){
+        linkHot.clear();
+        severityGlow = 0;
+      }
+      return { ingest, linkHeat, step, reset, get severityGlow(){return severityGlow;} };
     })();
 
     function applyDrillBodyClass(){
@@ -2012,7 +2133,7 @@
     const $ = (id) => document.getElementById(id);
     const els = {
       healthDot: $('healthDot'), healthScore: $('healthScore'), eps: $('eps'), orch: $('orch'),
-      ticker: $('ticker'), pauseBtn: $('pauseBtn'), clearBtn: $('clearBtn'),
+      ticker: $('ticker'), pauseBtn: $('pauseBtn'), persistBtn: $('persistBtn'), clearBtn: $('clearBtn'),
       drillClear: $('drillClear'),
       selId: $('selId'), selType: $('selType'), selState: $('selState'), selHealth: $('selHealth'),
       selEpm: $('selEpm'), selP95: $('selP95'), selQueue: $('selQueue'), selCorr: $('selCorr'),
@@ -3126,12 +3247,43 @@
       els.pauseBtn.textContent = EventStreams.paused ? 'resume' : 'pause';
     });
 
+    function refreshPersistBtn(){
+      if(!els.persistBtn) return;
+      const on = !!EventStreams.persistEnabled;
+      els.persistBtn.textContent = on ? 'persist:on' : 'persist:off';
+      els.persistBtn.classList.toggle('active', on);
+    }
+    refreshPersistBtn();
+
+    if(els.persistBtn){
+      els.persistBtn.addEventListener('click', () => {
+        EventStreams.persistEnabled = !EventStreams.persistEnabled;
+        refreshPersistBtn();
+      });
+    }
+
     els.clearBtn.addEventListener('click', () => {
       EventStreams.clear();
+      try{ WorkflowRuntime.reset(); } catch {}
+      try{ EventReactor.reset(); } catch {}
       refreshTicker();
+      refreshWorkflowPanel();
     });
 
     // Wire event bus -> ticker
+    // If persistence is enabled, replay stored events into derived runtimes.
+    try{
+      if(EventStreams.persistEnabled){
+        const past = EventEngine.items().slice().reverse(); // oldest -> newest
+        past.forEach(e => {
+          try{ EventReactor.ingest(e); } catch {}
+          try{ WorkflowRuntime.ingest(e); } catch {}
+        });
+        refreshTicker();
+        refreshWorkflowPanel();
+      }
+    } catch {}
+
     OperationalDataLayer.onEvent((evt) => {
       EventStreams.push(evt);
       EventReactor.ingest(evt);

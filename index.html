@@ -395,7 +395,7 @@
       .ticker{
         left:10px;
         right:10px;
-        bottom: calc(10px + 82px + env(safe-area-inset-bottom));
+        bottom: calc(12px + 92px + env(safe-area-inset-bottom));
         gap:8px;
       }
       .ticker .btn{ padding:8px 9px; }
@@ -1860,7 +1860,9 @@
         const s = base / 940; // slightly tighter than desktop baseline
         let S = Math.max(0.42, Math.min(1, s));
         if(window.matchMedia && window.matchMedia('(max-width: 560px)').matches){
-          S = Math.min(S, 0.62);
+          // Mobile: keep more breathing room near edges + bottom nav
+          S = Math.min(S, 0.58);
+          CY = H*0.46; // lift system slightly to avoid bottom-edge clipping
         }
         canvas._orbitScale = S;
       }

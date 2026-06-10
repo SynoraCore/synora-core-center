@@ -339,6 +339,20 @@
       .context{ display:none; }
     }
 
+    /* Small mobile: protect legibility + prevent clipping */
+    @media (max-width: 560px){
+      body{ overflow:auto; }
+      .app{ padding:10px; gap:10px; grid-template-columns: 72px 1fr; }
+      .rail{ padding:8px; }
+      .modebtn{ height:52px; border-radius:16px; }
+      .topline{ inset:10px 10px auto 10px; }
+      .title{ max-width: calc(100% - 8px); padding:9px 10px; }
+      .title .s{ display:none; }
+      .statusbar{ padding:9px 10px; }
+      .ticker{ left:10px; right:10px; bottom:10px; gap:8px; }
+      .ticker .btn{ padding:8px 9px; }
+    }
+
     /* Reduced motion */
     @media (prefers-reduced-motion: reduce){
       .bg-grid{ animation:none; }
@@ -1791,6 +1805,12 @@
         ctx.setTransform(p,0,0,p,0,0);
         CX = W/2;
         CY = H/2;
+
+        // Mobile-safe scaling: keep orbital system inside the canvas bounds
+        // (prevents labels/rings being clipped on narrow viewports).
+        const base = Math.min(W, H);
+        const s = base / 900; // 900px ≈ “desktop comfortable” baseline
+        canvas._orbitScale = Math.max(0.45, Math.min(1, s));
       }
 
       function drawGlow(x,y,rad,color,alpha){
@@ -1857,7 +1877,8 @@
         ctx.strokeStyle = col;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(CX,CY,r,0,Math.PI*2);
+        const S = canvas._orbitScale || 1;
+        ctx.arc(CX,CY,r*S,0,Math.PI*2);
         ctx.stroke();
         ctx.restore();
       }
@@ -1866,7 +1887,8 @@
         if(n.layer===1) return { x: CX, y: CY };
         const phys = canvas._physics || { orbit: 1 };
         const a = n.orbit.a0 + t*n.orbit.w*phys.orbit;
-        return { x: CX + Math.cos(a)*n.orbit.r, y: CY + Math.sin(a)*n.orbit.r };
+        const S = canvas._orbitScale || 1;
+        return { x: CX + Math.cos(a)*n.orbit.r*S, y: CY + Math.sin(a)*n.orbit.r*S };
       }
 
       function colorForState(state){
@@ -2359,7 +2381,8 @@
         ctx.strokeStyle = 'rgba(64,245,255,.55)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(0,0, 260, -0.18, 0.18);
+        const S = canvas._orbitScale || 1;
+        ctx.arc(0,0, 260*S, -0.18, 0.18);
         ctx.stroke();
         ctx.restore();
       }
@@ -3607,10 +3630,168 @@
       });
     });
 
+    // -------------------------------
+    // Guardian Operations (Command Center integration — MVP)
+    // -------------------------------
+    const GuardianOps = (() => {
+      const LS_KEY = 'synora_guardian_ops_cfg_v1';
+      const loadCfg = () => {
+        try{ return JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch { return {}; }
+      };
+      const saveCfg = (cfg) => {
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(cfg||{})); } catch {}
+      };
+
+      const api = async (path, { method='GET', query={}, body=null } = {}) => {
+        const u = new URL('/api/guardian', location.origin);
+        u.searchParams.set('path', path);
+        Object.entries(query||{}).forEach(([k,v])=>{ if(v!=null && v!=='') u.searchParams.set(k, String(v)); });
+        const res = await fetch(u.toString(), {
+          method,
+          headers: { 'Content-Type':'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
+          cache: 'no-store'
+        });
+        const j = await res.json().catch(()=>null);
+        if(!res.ok) throw new Error(j?.error || `HTTP_${res.status}`);
+        return j;
+      };
+
+      function mount(){
+        const host = document.querySelector('aside.context');
+        if(!host) return;
+        const cfg = loadCfg();
+        const tenant = cfg.tenant_id || 'MEDIADORA-001';
+
+        host.innerHTML = `
+          <div class="panel" style="border-color:rgba(212,175,55,.22); background:rgba(212,175,55,.06)">
+            <h2 style="color:rgba(255,240,200,.92)">GUARDIAN OPERATIONS</h2>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px">
+              <input class="inp" id="gTenant" placeholder="tenant_id (ex: MEDIADORA-001)" value="${tenant}" style="flex:1; min-width:200px" />
+              <button class="btn2" id="gRefresh">refresh</button>
+            </div>
+            <div id="gOpsMsg" style="margin-top:10px; font-size:11px; line-height:1.4; color:rgba(233,236,255,.70); font-family:var(--mono)">status: idle</div>
+          </div>
+
+          <div class="panel">
+            <h2>GUARDIAN STATUS</h2>
+            <div class="kv">
+              <div>service_health</div><div class="v" id="gService">—</div>
+              <div>policy_version</div><div class="v" id="gPolicy">—</div>
+              <div>stage_version</div><div class="v" id="gStage">—</div>
+              <div>active_tenant</div><div class="v" id="gActiveTenant">—</div>
+              <div>last_decision_id</div><div class="v" id="gLastDecision">—</div>
+              <div>last_evidence_id</div><div class="v" id="gLastEvidence">—</div>
+              <div>last_status</div><div class="v" id="gLastStatus">—</div>
+              <div>last_timestamp</div><div class="v" id="gLastTs">—</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>DECISIONS (recent)</h2>
+            <div id="gDecisions" style="display:flex; flex-direction:column; gap:8px"></div>
+          </div>
+
+          <div class="panel">
+            <h2>EVIDENCE (recent)</h2>
+            <div id="gEvidences" style="display:flex; flex-direction:column; gap:8px"></div>
+          </div>
+
+          <div class="panel">
+            <h2>REPLAY</h2>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px">
+              <input class="inp" id="gReplayId" placeholder="decision_id" style="flex:1; min-width:200px" />
+              <button class="btn2" id="gReplayBtn">replay</button>
+            </div>
+            <div id="gReplayOut" style="margin-top:10px; font-family:var(--mono); font-size:11px; white-space:pre-wrap; color:rgba(233,236,255,.78)"></div>
+          </div>
+        `;
+
+        const $ = (id)=>document.getElementById(id);
+
+        async function refresh(){
+          const tenantId = String($('gTenant')?.value||'').trim();
+          saveCfg({ tenant_id: tenantId });
+          $('gOpsMsg').textContent = 'status: loading…';
+
+          try{
+            const st = await api('/guardian/status', { query: { tenant_id: tenantId } });
+            $('gService').textContent = st.service_health || '—';
+            $('gPolicy').textContent = st.policy_version || '—';
+            $('gStage').textContent = st.stage_version || '—';
+            $('gActiveTenant').textContent = st.active_tenant || '—';
+            $('gLastDecision').textContent = st.last_decision_id || '—';
+            $('gLastEvidence').textContent = st.last_evidence_id || '—';
+            $('gLastStatus').textContent = st.last_decision_status || '—';
+            $('gLastTs').textContent = st.last_decision_timestamp || '—';
+
+            const dec = await api('/guardian/decisions', { query: { tenant_id: tenantId, limit: 20 } });
+            const ev = await api('/guardian/evidences', { query: { tenant_id: tenantId, limit: 20 } });
+
+            $('gDecisions').innerHTML = (dec.items||[]).map((d)=>{
+              const status = String(d.status||'').toUpperCase();
+              const reasons = Array.isArray(d.reason_codes) ? d.reason_codes.slice(0,3).join(',') : '';
+              const corr = String(d.correlation_id||'');
+              const ts = String(d.created_at||'');
+              return `
+                <div style="padding:10px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.14)">
+                  <div style="display:flex; justify-content:space-between; gap:10px; align-items:center">
+                    <div style="font-size:11px; letter-spacing:.5px; color:rgba(255,240,200,.92)">${status || '—'}</div>
+                    <div style="font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70)">${ts}</div>
+                  </div>
+                  <div style="margin-top:8px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.85)">decision: ${d.decision_id||'—'}</div>
+                  <div style="margin-top:6px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70)">corr: ${corr||'—'}</div>
+                  <div style="margin-top:6px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.62)">reasons: ${reasons||'—'}</div>
+                </div>
+              `;
+            }).join('') || `<div style="opacity:.65">(no decisions)</div>`;
+
+            $('gEvidences').innerHTML = (ev.items||[]).map((e)=>{
+              const ts = String(e.created_at||'');
+              return `
+                <div style="padding:10px; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.14)">
+                  <div style="display:flex; justify-content:space-between; gap:10px; align-items:center">
+                    <div style="font-size:11px; letter-spacing:.5px; color:rgba(208,252,255,.92)">EVIDENCE</div>
+                    <div style="font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70)">${ts}</div>
+                  </div>
+                  <div style="margin-top:8px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.85)">evidence: ${e.evidence_id||'—'}</div>
+                  <div style="margin-top:6px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.70)">corr: ${e.correlation_id||'—'}</div>
+                  <div style="margin-top:6px; font-family:var(--mono); font-size:11px; color:rgba(233,236,255,.62)">fp: ${String(e.outputs_fingerprint||'').slice(0,16)}…</div>
+                </div>
+              `;
+            }).join('') || `<div style="opacity:.65">(no evidences)</div>`;
+
+            $('gOpsMsg').textContent = 'status: ok';
+          } catch (err){
+            $('gOpsMsg').textContent = `status: error (${err?.message||String(err)})`;
+          }
+        }
+
+        $('gRefresh')?.addEventListener('click', refresh);
+        $('gTenant')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') refresh(); });
+        $('gReplayBtn')?.addEventListener('click', async ()=>{
+          const decisionId = String($('gReplayId')?.value||'').trim();
+          if(!decisionId){ $('gReplayOut').textContent = 'missing decision_id'; return; }
+          $('gReplayOut').textContent = 'replaying…';
+          try{
+            const out = await api(`/guardian/replay/${encodeURIComponent(decisionId)}`, { method:'POST' });
+            $('gReplayOut').textContent = JSON.stringify(out, null, 2);
+          } catch (err){
+            $('gReplayOut').textContent = `error: ${err?.message||String(err)}`;
+          }
+        });
+
+        refresh();
+      }
+
+      return { mount };
+    })();
+
     UIState.onMode(() => {
       refreshTicker();
       // swap context panels
       if(UIState.mode === 'workflows') refreshWorkflowPanel();
+      else if(UIState.mode === 'guardian') GuardianOps.mount();
       else { ContextPanels.restore(); refreshSelected(); }
     });
 
